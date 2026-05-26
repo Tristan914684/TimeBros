@@ -7,7 +7,40 @@ export default function Sign_up_page() {
     const [confirmPassword, setConfirmPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
+    const [error, setError] = useState("");
     const navigate = useNavigate();
+
+    const handleSignUp = async () => {
+        if (password.length < 8 || password.length > 15) {
+            setError("Password must be between 8 and 15 characters.");
+            return;
+        }
+        if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+            setError("Password must contain at least 1 special character.");
+            return;
+        }
+        if (password !== confirmPassword) {
+            setError("Passwords do not match.");
+            return;
+        }
+        setError("");
+
+        try {
+            const res = await fetch("http://localhost:3001/signup", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, password }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                navigate('/');
+            } else {
+                setError(data.error);
+            }
+        } catch (err) {
+            setError("Something went wrong. Please try again.");
+        }
+    };
 
     return (
         <div style={styles.root}>
@@ -149,7 +182,13 @@ export default function Sign_up_page() {
                         </div>
                     </div>
 
-                    <button className="signup-btn">Sign up</button>
+                    {error && (
+                        <p style={{ color: "#f87171", fontSize: 13, marginBottom: 12, textAlign: "center" }}>
+                            {error}
+                        </p>
+                    )}
+
+                    <button className="signup-btn" onClick={handleSignUp}>Sign up</button>
 
                     <p style={{ textAlign: "center", fontSize: 13.5, color: "white", marginTop: 22 }}>
                         Already have an account? <span className="login-link" style={{ cursor: "pointer" }} onClick={() => navigate('/')}>Log in</span>

@@ -23,109 +23,30 @@ const CalendarIconWhite = () => (
   </svg>
 );
 
-const DeskIllustration = () => (
-  <svg viewBox="0 0 300 230" width="100%" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="shadeG" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="#1e293b" />
-        <stop offset="100%" stopColor="#0f172a" />
-      </linearGradient>
-    </defs>
-
-    <rect x="0" y="0" width="300" height="230" fill="#d4e6f7" opacity="0.4" rx="6" />
-
-    <rect x="155" y="8" width="130" height="155" rx="6" fill="#9ec4de" opacity="0.6" />
-    <rect x="161" y="14" width="118" height="143" rx="4" fill="#c2daf0" />
-    <rect x="167" y="20" width="106" height="131" rx="3" fill="#daeeff" opacity="0.85" />
-    <rect x="167" y="20" width="106" height="131" rx="3" fill="#e8f4ff" opacity="0.5" />
-    <rect x="161" y="14" width="118" height="143" rx="4" fill="none" stroke="#8ab6d4" strokeWidth="5" />
-    <line x1="220" y1="14" x2="220" y2="157" stroke="#8ab6d4" strokeWidth="4" />
-    <line x1="161" y1="86" x2="279" y2="86" stroke="#8ab6d4" strokeWidth="4" />
-    <rect x="171" y="24" width="6" height="56" rx="3" fill="white" opacity="0.4" />
-    <rect x="224" y="90" width="5" height="36" rx="2" fill="white" opacity="0.3" />
-    <ellipse cx="195" cy="44" rx="20" ry="30" fill="#7ab0cc" opacity="0.3" />
-    <ellipse cx="210" cy="36" rx="15" ry="24" fill="#6aa0c0" opacity="0.25" />
-    <ellipse cx="255" cy="40" rx="18" ry="28" fill="#7ab0cc" opacity="0.28" />
-    <ellipse cx="268" cy="50" rx="14" ry="22" fill="#6aa0c0" opacity="0.22" />
-
-    <rect x="0" y="188" width="300" height="14" rx="3" fill="#a8c8e4" opacity="0.9" />
-    <rect x="0" y="188" width="300" height="4" rx="2" fill="#c8e0f4" />
-    <rect x="0" y="200" width="300" height="8" rx="0" fill="#88a8c4" opacity="0.25" />
-
-    <ellipse cx="68" cy="192" rx="30" ry="6" fill="#5a6a7e" opacity="0.7" />
-    <rect x="56" y="185" width="24" height="9" rx="4" fill="#4a5a6e" />
-    <rect x="58" y="185" width="20" height="3" rx="2" fill="#7a8a9e" opacity="0.4" />
-    <rect x="62" y="148" width="11" height="39" rx="4" fill="#4a5a6e" />
-    <rect x="63" y="149" width="4" height="37" rx="2" fill="#6a7a8e" opacity="0.4" />
-    <circle cx="67" cy="148" r="8" fill="#3a4a5e" />
-    <circle cx="67" cy="148" r="4" fill="#5a6a7e" />
-    <line x1="67" y1="142" x2="44" y2="105" stroke="#3a4a5e" strokeWidth="8" strokeLinecap="round" />
-    <line x1="67" y1="142" x2="44" y2="105" stroke="#6a7a8e" strokeWidth="3" strokeLinecap="round" opacity="0.4" />
-    <circle cx="44" cy="105" r="7" fill="#3a4a5e" />
-    <circle cx="44" cy="105" r="3" fill="#5a6a7e" />
-    <line x1="44" y1="99" x2="68" y2="58" stroke="#3a4a5e" strokeWidth="7" strokeLinecap="round" />
-    <line x1="44" y1="99" x2="68" y2="58" stroke="#6a7a8e" strokeWidth="2.5" strokeLinecap="round" opacity="0.4" />
-    <g transform="translate(68,52) rotate(-28)">
-      <path d="M-28,-7 L28,-7 L22,24 L-22,24 Z" fill="url(#shadeG)" />
-      <path d="M-22,-4 L22,-4 L17,21 L-17,21 Z" fill="#263040" opacity="0.5" />
-      <rect x="-30" y="-11" width="60" height="6" rx="3" fill="#1a2535" />
-      <rect x="-22" y="22" width="44" height="4" rx="2" fill="#1a2535" />
-      <ellipse cx="0" cy="12" rx="11" ry="7" fill="#fffce0" opacity="0.3" />
-    </g>
-    <path d="M52 68 L28 190 L118 190 L92 68 Z" fill="#fffce0" opacity="0.07" />
-
-    <rect x="88" y="172" width="108" height="20" rx="3" fill="#1a1a22" />
-    <rect x="88" y="172" width="8" height="20" rx="2" fill="#0e0e14" />
-    <rect x="189" y="174" width="5" height="16" rx="1" fill="#3a3a44" opacity="0.7" />
-    <rect x="98" y="174" width="85" height="3" rx="1" fill="#404048" opacity="0.5" />
-    <text x="144" y="186" textAnchor="middle" fontFamily="sans-serif" fontSize="7.5" fontWeight="700" fill="#787880" letterSpacing="1.2">CONSISTENCY</text>
-
-    <rect x="93" y="153" width="100" height="21" rx="3" fill="#1e3f90" />
-    <rect x="93" y="153" width="8" height="21" rx="2" fill="#142d6e" />
-    <rect x="186" y="155" width="5" height="17" rx="1" fill="#142d6e" opacity="0.6" />
-    <rect x="103" y="155" width="78" height="3" rx="1" fill="#4a78d8" opacity="0.4" />
-    <text x="143" y="168" textAnchor="middle" fontFamily="sans-serif" fontSize="7.5" fontWeight="700" fill="#90b0f0" letterSpacing="1.2">DISCIPLINE</text>
-
-    <rect x="98" y="135" width="92" height="20" rx="3" fill="#2e68cc" />
-    <rect x="98" y="135" width="8" height="20" rx="2" fill="#1e50aa" />
-    <rect x="183" y="137" width="5" height="16" rx="1" fill="#1e50aa" opacity="0.6" />
-    <rect x="108" y="137" width="68" height="3" rx="1" fill="#70a8ff" opacity="0.4" />
-    <text x="144" y="150" textAnchor="middle" fontFamily="sans-serif" fontSize="8.5" fontWeight="700" fill="white" letterSpacing="1.5">FOCUS</text>
-
-    <ellipse cx="210" cy="198" rx="95" ry="8" fill="#90b0cc" opacity="0.3" />
-    <rect x="118" y="186" width="185" height="10" rx="2" fill="#c0d8f0" opacity="0.8" />
-    <rect x="120" y="173" width="90" height="16" rx="2" fill="#ddeeff" />
-    <rect x="212" y="173" width="89" height="16" rx="2" fill="#d8eafc" />
-    <rect x="208" y="172" width="6" height="18" rx="1" fill="#a8c0d8" />
-    <line x1="126" y1="178" x2="204" y2="178" stroke="#aac4de" strokeWidth="0.7" />
-    <line x1="126" y1="182" x2="204" y2="182" stroke="#aac4de" strokeWidth="0.7" />
-    <line x1="126" y1="186" x2="204" y2="186" stroke="#aac4de" strokeWidth="0.7" />
-    <line x1="216" y1="178" x2="296" y2="178" stroke="#aac4de" strokeWidth="0.7" />
-    <line x1="216" y1="182" x2="296" y2="182" stroke="#aac4de" strokeWidth="0.7" />
-    <line x1="216" y1="186" x2="296" y2="186" stroke="#aac4de" strokeWidth="0.7" />
-    <line x1="288" y1="172" x2="298" y2="196" stroke="#3a4a5e" strokeWidth="3" strokeLinecap="round" />
-    <ellipse cx="289" cy="171" rx="3" ry="2" fill="#5a6a7e" />
-    <path d="M296 194 L300 200 L292 198 Z" fill="#2a3a4e" />
-
-    <path d="M230 190 L238 168 L262 168 L270 190 Z" fill="#8ab0cc" opacity="0.75" />
-    <rect x="234" y="164" width="32" height="7" rx="3" fill="#70a0be" />
-    <rect x="237" y="165" width="14" height="3" rx="1" fill="#b0d0e8" opacity="0.5" />
-    <path d="M258 168 L270 190 L264 190 L252 168 Z" fill="#5888a8" opacity="0.35" />
-    <ellipse cx="248" cy="166" rx="15" ry="4" fill="#5a7a5a" opacity="0.6" />
-    <path d="M248 164 Q246 148 248 130" stroke="#5a7a5a" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-    <path d="M248 152 Q228 140 222 118 Q240 124 248 148" fill="#4a80c0" opacity="0.6" />
-    <path d="M248 145 Q270 132 276 108 Q256 116 248 141" fill="#3070b0" opacity="0.55" />
-    <path d="M248 138 Q226 125 222 100 Q242 108 248 134" fill="#5890d0" opacity="0.5" />
-    <path d="M248 130 Q272 116 276 90 Q254 100 248 126" fill="#4080c0" opacity="0.5" />
-    <path d="M248 122 Q240 98 243 76 Q256 90 252 118" fill="#5088c8" opacity="0.55" />
-  </svg>
-);
-
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
+
+  const handleLogin = async () => {
+    try {
+      const res = await fetch("http://localhost:3001/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        navigate('/timetable', {state: { email: email } });
+      } else {
+        setError(data.error);
+      }
+    } catch (err) {
+      setError("Something went wrong. Please try again.");
+    }
+  };
 
   return (
     <div style={styles.root}>
@@ -331,12 +252,18 @@ export default function LoginPage() {
                   </button>
                 </div>
                 <div style={{ textAlign: "right", marginTop: 8 }}>
-                  <span className="forgot-link" style={{cursor:"pointer"}} onClick={() => navigate('/forgot-password')}>Forgot password?</span>
+                  <span className="forgot-link" style={{ cursor: "pointer" }} onClick={() => navigate('/forgot-password')}>Forgot password?</span>
                 </div>
               </div>
 
+              {error && (
+                <p style={{ color: "#f87171", fontSize: 13, marginBottom: 12, textAlign: "center" }}>
+                  {error}
+                </p>
+              )}
+
               <div className="fade-up delay-4">
-                <button className="login-btn">Log in</button>
+                <button className="login-btn" onClick={handleLogin}>Log in</button>
               </div>
 
               <p className="fade-up delay-5" style={{ textAlign: "center", fontSize: 13.5, color: "#c5cad1", marginTop: 22 }}>
