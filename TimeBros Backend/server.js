@@ -47,4 +47,25 @@ app.post("/login", async (req, res) => {
     }
 });
 
+app.get("/modules", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM modules ORDER BY code");
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/modules/:code/lessons", async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT * FROM lessons WHERE module_code = $1",
+      [req.params.code]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.listen(3001, () => console.log("Server running on port 3001"));
