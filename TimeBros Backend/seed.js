@@ -4,7 +4,7 @@ const fetch = require("node-fetch");
 const pool = new Pool({
   user: "postgres",
   host: "localhost",
-  database: "User_details",
+  database: "Timebros",
   password: "Timebros",
   port: 5432,
 });
@@ -57,7 +57,7 @@ async function seed() {
     }
   }
 
-  console.log("Done!");
+  console.log("Done");
   await pool.end();
 }
 
