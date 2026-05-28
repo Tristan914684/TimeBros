@@ -528,7 +528,7 @@ export default function TimetablePage() {
             <div style={{ marginTop: "auto", paddingTop: 20 }}>
               <div style={{ display: "flex", gap: 4, background: "#0f1929", borderRadius: 10, padding: 4, marginBottom: 10 }}>
                 <button className={"mode-tab" + (mode === "manual" ? " active" : "")} onClick={() => setMode("manual")}>Manual</button>
-                <button className={"mode-tab" + (mode === "auto" ? " active" : "")} onClick={() => setMode("auto")}>✨ Auto-Generate</button>
+                <button className={"mode-tab" + (mode === "auto" ? " active" : "")} onClick={() => setMode("auto")}>Auto-Generate</button>
               </div>
               {mode === "manual" ? (
                 <button className="tb-genbtn" onClick={generate} disabled={generating || selectedMods.length === 0}>
