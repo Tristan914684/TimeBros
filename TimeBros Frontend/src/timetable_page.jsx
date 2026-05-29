@@ -69,6 +69,7 @@ function buildGrid(selectedMods, selectionMap) {
               classNo: lesson.class_no,
               startTime: lesson.start_time,
               endTime: lesson.end_time,
+              venue: lesson.venue,
               isStart: h === startH,
               isEnd: h === endH - 1,
               color: mod.color,
@@ -347,6 +348,9 @@ export default function TimetablePage() {
       }}>
         <span style={{ fontSize: 11, fontWeight: 700, color: slot.color.text, lineHeight: 1.2, textAlign: "center" }}>{slot.modCode}</span>
         <span style={{ fontSize: 10, color: slot.color.border, lineHeight: 1.2, textAlign: "center", marginTop: 1 }}>{slot.lessonType} [{slot.classNo}]</span>
+        {slot.venue && (
+        <span style={{ fontSize: 9, color: slot.color.text, lineHeight: 1.2, textAlign: "center", marginTop: 1, opacity: 0.75 }}>{slot.venue}</span>
+      )}
       </div>
     );
   }
