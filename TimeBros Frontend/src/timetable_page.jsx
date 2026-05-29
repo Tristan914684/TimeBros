@@ -393,7 +393,7 @@ export default function TimetablePage() {
         .tb-genbtn { width: 100%; padding: 12px; border-radius: 10px; background: #2563EB; border: none; color: white; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; letter-spacing: 0.03em; }
         .tb-genbtn:hover { background: #1d4ed8; }
         .tb-genbtn:disabled { opacity: 0.45; cursor: not-allowed; }
-        .tb-autobtn { width: 100%; padding: 12px; border-radius: 10px; background: linear-gradient(135deg, #7c3aed, #2563EB); border: none; color: white; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; letter-spacing: 0.03em; }
+        .tb-autobtn { width: 100%; padding: 12px; border-radius: 10px; background: #2563EB; border: none; color: white; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; letter-spacing: 0.03em; }
         .tb-autobtn:hover { opacity: 0.9; }
         .tb-autobtn:disabled { opacity: 0.45; cursor: not-allowed; }
         .tb-logout { background: transparent; color: #64748b; border: 1px solid #1e293b; border-radius: 7px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; }
