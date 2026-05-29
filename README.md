@@ -1,37 +1,42 @@
-Install
--postgresql
--Node.js
+# Timebros Local Setup Guide
 
-Set up Database by entering 
-CREATE DATABASE "Timebros"; 
-into psql terminal and run
+## Prerequisites
 
-Password is Timebros as well for pgadmin
+Download and install the following:
+- PostgreSQL — set the `postgres` user password to `Timebros` during installation
+- Node.js
 
-Create table for user details for signup by entering 
----------------
+## Set up Database
+
+Open pgAdmin or the psql terminal and run the following commands one at a time:
+
+Create the database:
+```sql
+CREATE DATABASE "Timebros";
+```
+
+Create the users table:
+```sql
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
----------------
-into psql terminal and run
+```
 
-Create table for modules by entering 
----------------
+Create the modules table:
+```sql
 CREATE TABLE modules (
     code VARCHAR(20) PRIMARY KEY,
     title TEXT,
     description TEXT,
     credits INTEGER
 );
----------------
-into psql terminal and run
+```
 
-Create table for lessons by entering 
----------------
+Create the lessons table:
+```sql
 CREATE TABLE lessons (
     id SERIAL PRIMARY KEY,
     module_code VARCHAR(20) REFERENCES modules(code),
@@ -42,28 +47,44 @@ CREATE TABLE lessons (
     end_time VARCHAR(10),
     venue TEXT
 );
----------------
-into psql terminal and run
+```
 
-on vscode cd into "Timebros Backend"
-now seed the database with the modules taken from nusmods by running 
----------------
+## Install Dependencies
+
+In VS Code, cd into TimeBros Backend and run:
+```bash
+npm install
+```
+
+In a new terminal, cd into TimeBros Frontend and run:
+```bash
+npm install
+```
+
+## Seed the Database
+
+In the TimeBros Backend terminal run:
+```bash
 node seed.js
----------------
-in vscode
+```
 
-start the server by running in vscode
----------------
+Wait for `Done` before continuing.
+
+## Start the App
+
+In the TimeBros Backend terminal run:
+```bash
 node server.js
----------------
+```
 
-in another terminal on vscode cd to "Timebros Frontend" and run
----------------
+In the TimeBros Frontend terminal run:
+```bash
 npm run dev
----------------
+```
 
-Go to: http://localhost:5173 to view the website
+## Open in Browser
 
+Go to: http://localhost:5173
 
 
 
