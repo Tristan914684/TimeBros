@@ -3,7 +3,7 @@
 ## Prerequisites
 
 Download and install the following:
-- PostgreSQL — set the `postgres` user password to `Timebros` during installation
+- PostgreSQL
 - pgadmin4
 - Node.js
 
