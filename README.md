@@ -7,6 +7,9 @@ Download and install the following:
 - pgadmin4
 - Node.js
 
+In PGADMIN4 create a new server by right clicking server and create new server
+Create a new database called Timebros and password to be Timebros
+
 ## Set up Database
 
 Open pgAdmin or the psql terminal and run the following commands one at a time:
