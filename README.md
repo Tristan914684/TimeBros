@@ -51,6 +51,9 @@ CREATE TABLE lessons (
 );
 ```
 
+Clone the repository onto vscode
+
+
 ## Install Dependencies
 
 In VS Code, cd into TimeBros Backend and run:
