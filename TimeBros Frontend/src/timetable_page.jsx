@@ -62,7 +62,6 @@ function buildGrid(selectedMods, selectionMap, dayBlocks, enabledDays) {
   DAYS.forEach((d) => { grid[d] = {}; });
   const conflicts = [];
 
-  // Place personal blocks first
   for (const day of DAYS) {
     if (!enabledDays[day]) continue;
     for (const block of (dayBlocks[day] || [])) {
@@ -222,7 +221,6 @@ function scoreSchedule(grid, criteria, enabledDays) {
   return { score, breakdown };
 }
 
-
 function getAllCombinations(selectedMods) {
   const axes = [];
   for (const mod of selectedMods) {
@@ -246,15 +244,6 @@ function getAllCombinations(selectedMods) {
     if (combos.length > 50000) break;
   }
   return combos;
-}
-
-function shuffleArray(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
 }
 
 function UnitsTracker({ selectedMods }) {
@@ -290,7 +279,6 @@ function UnitsTracker({ selectedMods }) {
   );
 }
 
-
 function ScorePanel({ scoreData, autoResults, selectedResult, mode }) {
   const data = mode === "auto" && autoResults.length > 0
     ? { score: autoResults[selectedResult]?.score ?? null, breakdown: autoResults[selectedResult]?.breakdown ?? [] }
@@ -320,7 +308,6 @@ function ScorePanel({ scoreData, autoResults, selectedResult, mode }) {
       <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 13, fontWeight: 800, color: "#2563EB", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 14 }}>
         Score
       </div>
-
       {score === null ? (
         <div style={{ fontSize: 12, color: "#334155" }}>
           {noSoftFilters ? "Enable soft filters to see a score" : "Generate a timetable to see score"}
@@ -332,15 +319,11 @@ function ScorePanel({ scoreData, autoResults, selectedResult, mode }) {
             <span style={{ fontSize: 13, color: "#334155", fontWeight: 600 }}>/100</span>
           </div>
           <div style={{ fontSize: 12, fontWeight: 700, color: scoreColor(score), marginBottom: 12 }}>{scoreLabel(score)}</div>
-
-          {/* Score bar */}
           <div style={{ height: 6, background: "#1e293b", borderRadius: 3, marginBottom: 16, overflow: "hidden" }}>
             <div style={{ height: "100%", width: score + "%", background: scoreColor(score), borderRadius: 3, transition: "width 0.4s ease" }} />
           </div>
-
           <div style={{ borderTop: "1px solid #1e293b", marginBottom: 12 }} />
           <div style={{ fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>Breakdown</div>
-
           {noSoftFilters ? (
             <div style={{ fontSize: 11, color: "#334155" }}>No soft filters active</div>
           ) : (
@@ -358,7 +341,6 @@ function ScorePanel({ scoreData, autoResults, selectedResult, mode }) {
               ))}
             </div>
           )}
-
           {mode === "auto" && autoResults.length > 1 && (
             <>
               <div style={{ borderTop: "1px solid #1e293b", margin: "14px 0 10px" }} />
@@ -509,10 +491,8 @@ function DayBlocksEditor({ dayBlocks, setDayBlocks }) {
   );
 }
 
-// ── NEW: Day availability toggle component ──────────────────────────────────
 function DayToggles({ enabledDays, setEnabledDays }) {
   const allOn = DAYS.every((d) => enabledDays[d]);
-  const allOff = DAYS.every((d) => !enabledDays[d]);
 
   function toggleDay(day) {
     setEnabledDays((prev) => ({ ...prev, [day]: !prev[day] }));
@@ -527,7 +507,6 @@ function DayToggles({ enabledDays, setEnabledDays }) {
 
   return (
     <div style={{ background: "#0a1220", borderRadius: 10, border: "1px solid #1e293b", overflow: "hidden" }}>
-      {/* Header row */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderBottom: "1px solid #1e293b" }}>
         <div>
           <div style={{ fontSize: 12, fontWeight: 600, color: "#64748b" }}>Available days</div>
@@ -540,8 +519,6 @@ function DayToggles({ enabledDays, setEnabledDays }) {
           {allOn ? "Clear all" : "Select all"}
         </button>
       </div>
-
-      {/* Day pill row */}
       <div style={{ display: "flex", gap: 6, padding: "10px 12px", flexWrap: "wrap" }}>
         {DAYS.map((day, di) => {
           const on = enabledDays[day];
@@ -567,11 +544,454 @@ function DayToggles({ enabledDays, setEnabledDays }) {
           );
         })}
       </div>
-
-
     </div>
   );
 }
+
+// ── FRIEND MATCH PANEL ──────────────────────────────────────────────────────
+
+function FriendMatchPanel({ selectedMods, mySelectionMap, userEmail, dayBlocks, enabledDays, onSwap }) {
+  const [friendEmail, setFriendEmail] = useState("");
+  const [friendData, setFriendData] = useState(null); // { selectionMap, selectedMods }
+  const [fetchStatus, setFetchStatus] = useState("idle"); // idle | loading | found | error
+  const [fetchError, setFetchError] = useState("");
+
+  // Modules both users share
+  const [sharedMods, setSharedMods] = useState([]); // [{ code, lessonTypes: [{ type, mustMatch: bool }] }]
+  const [matchResults, setMatchResults] = useState(null); // null | { matches, mismatches }
+  const [hasChecked, setHasChecked] = useState(false);
+  // swapErrors: key = `${modCode}:${lessonType}` → error string or null
+  const [swapErrors, setSwapErrors] = useState({});
+  const [swapDone, setSwapDone] = useState({});
+
+  // Check if swapping modCode's lessonType to targetClassNo would clash with anything else
+  function getSwapClash(modCode, lessonType, targetClassNo) {
+    const mod = selectedMods.find(m => m.code === modCode);
+    if (!mod) return null;
+    const slots = mod.grouped?.[lessonType]?.[targetClassNo] || [];
+
+    // Build a grid of all other current slots (excluding this specific lessonType of this mod)
+    const occupied = {}; // "Day|hour" → label
+    DAYS.forEach(day => {
+      if (!enabledDays[day]) return;
+      // Personal blocks
+      for (const block of (dayBlocks[day] || [])) {
+        const fromH = parseInt(block.from, 10);
+        const toH = parseInt(block.to, 10);
+        for (let h = fromH; h < toH; h++) occupied[`${day}|${h}`] = block.name ? `"${block.name}" block` : "a personal block";
+      }
+    });
+
+    for (const m of selectedMods) {
+      for (const [lt, classNos] of Object.entries(m.grouped || {})) {
+        // Skip the slot we're about to replace
+        if (m.code === modCode && lt === lessonType) continue;
+        const chosenClass = mySelectionMap[m.code]?.[lt] || Object.keys(classNos)[0];
+        for (const lesson of (classNos[chosenClass] || [])) {
+          if (!enabledDays[lesson.day]) continue;
+          const startH = timeToHour(lesson.start_time);
+          const endH = timeToHour(lesson.end_time);
+          for (let h = startH; h < endH; h++) {
+            occupied[`${lesson.day}|${h}`] = `${m.code} ${lt}`;
+          }
+        }
+      }
+    }
+
+    // Now check the target slots
+    for (const lesson of slots) {
+      if (!enabledDays[lesson.day]) continue;
+      const startH = timeToHour(lesson.start_time);
+      const endH = timeToHour(lesson.end_time);
+      for (let h = startH; h < endH; h++) {
+        const key = `${lesson.day}|${h}`;
+        if (occupied[key]) return `Clashes with ${occupied[key]} on ${lesson.day} at ${hourLabel(h)}`;
+      }
+    }
+    return null;
+  }
+
+  // When friend data arrives or selectedMods changes, rebuild sharedMods list
+  useEffect(() => {
+    if (!friendData) { setSharedMods([]); setMatchResults(null); setHasChecked(false); return; }
+
+    const friendModCodes = new Set((friendData.selectedMods || []).map(m => m.code));
+    const overlap = selectedMods.filter(m => friendModCodes.has(m.code));
+
+    setSharedMods(prev => {
+      return overlap.map(m => {
+        const lessonTypes = Object.keys(m.grouped || {});
+        const existing = prev.find(p => p.code === m.code);
+        return {
+          code: m.code,
+          title: m.title,
+          lessonTypes: lessonTypes.map(lt => {
+            const existingLt = existing?.lessonTypes.find(e => e.type === lt);
+            return { type: lt, mustMatch: existingLt ? existingLt.mustMatch : true };
+          }),
+        };
+      });
+    });
+    setMatchResults(null);
+    setHasChecked(false);
+  }, [friendData, selectedMods]);
+
+  async function fetchFriend() {
+    const email = friendEmail.trim().toLowerCase();
+    if (!email) return;
+    if (email === userEmail.toLowerCase()) {
+      setFetchError("That's your own email.");
+      setFetchStatus("error");
+      return;
+    }
+    setFetchStatus("loading");
+    setFetchError("");
+    setFriendData(null);
+    setMatchResults(null);
+    setHasChecked(false);
+    try {
+      const res = await fetch(`${API}/schedules/${encodeURIComponent(email)}`);
+      const data = await res.json();
+      if (data.error || !data.selected_mods) {
+        setFetchError("No saved timetable found for this email.");
+        setFetchStatus("error");
+        return;
+      }
+      setFriendData({
+        selectionMap: data.selection_map || {},
+        selectedMods: data.selected_mods || [],
+      });
+      setFetchStatus("found");
+    } catch {
+      setFetchError("Could not reach the server.");
+      setFetchStatus("error");
+    }
+  }
+
+  function toggleMustMatch(modCode, lessonType) {
+    setSharedMods(prev => prev.map(m =>
+      m.code !== modCode ? m : {
+        ...m,
+        lessonTypes: m.lessonTypes.map(lt =>
+          lt.type !== lessonType ? lt : { ...lt, mustMatch: !lt.mustMatch }
+        ),
+      }
+    ));
+    setMatchResults(null);
+    setHasChecked(false);
+  }
+
+  function checkMatch() {
+    if (!friendData) return;
+    const matches = [];
+    const mismatches = [];
+
+    for (const mod of sharedMods) {
+      for (const lt of mod.lessonTypes) {
+        if (!lt.mustMatch) continue;
+
+        const myClass = mySelectionMap[mod.code]?.[lt.type]
+          || Object.keys(selectedMods.find(m => m.code === mod.code)?.grouped?.[lt.type] || {})[0];
+        const friendRawClass = friendData.selectionMap[mod.code]?.[lt.type];
+        // Fall back to first class in friend's grouped data for this module if not explicitly saved
+        const friendMod = selectedMods.find(m => m.code === mod.code);
+        const friendClass = friendRawClass
+          || Object.keys(friendMod?.grouped?.[lt.type] || {})[0];
+
+        if (!myClass || !friendClass) {
+          mismatches.push({ modCode: mod.code, lessonType: lt.type, myClass: myClass || null, friendClass: friendClass || null, reason: "One side has no selection" });
+          continue;
+        }
+
+        if (myClass === friendClass) {
+          matches.push({ modCode: mod.code, lessonType: lt.type, classNo: myClass });
+        } else {
+          mismatches.push({ modCode: mod.code, lessonType: lt.type, myClass, friendClass });
+        }
+      }
+    }
+
+    setMatchResults({ matches, mismatches });
+    setHasChecked(true);
+    setSwapErrors({});
+    setSwapDone({});
+  }
+
+  const modColor = (code) => {
+    const mod = selectedMods.find(m => m.code === code);
+    return mod?.color || MOD_COLORS[0];
+  };
+
+  const checkedModCount = sharedMods.filter(m => m.lessonTypes.some(lt => lt.mustMatch)).length;
+
+  return (
+    <>
+      <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 13, fontWeight: 800, color: "#a855f7", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>
+        Friend Match
+      </div>
+      <div style={{ fontSize: 11, color: "#475569", marginBottom: 14, lineHeight: 1.5 }}>
+        Check if you and a friend share the same class slots.
+      </div>
+
+      {/* Step 1: Enter friend email */}
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>
+          1 · Friend's email
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <input
+            placeholder="friend@example.com"
+            value={friendEmail}
+            onChange={e => { setFriendEmail(e.target.value); setFetchStatus("idle"); setFetchError(""); }}
+            onKeyDown={e => e.key === "Enter" && fetchFriend()}
+            style={{
+              flex: 1, background: "#0f1929", border: "1px solid #2e1a3a",
+              borderRadius: 8, padding: "8px 10px", fontSize: 12, color: "white",
+              fontFamily: "'DM Sans', sans-serif", outline: "none",
+            }}
+          />
+          <button
+            onClick={fetchFriend}
+            disabled={fetchStatus === "loading" || !friendEmail.trim()}
+            style={{
+              background: "#2e1a3a", border: "1px solid #a855f7", borderRadius: 8,
+              color: "#d8b4fe", fontSize: 12, fontWeight: 700, padding: "8px 12px",
+              cursor: "pointer", fontFamily: "'DM Sans', sans-serif", whiteSpace: "nowrap",
+              opacity: (!friendEmail.trim() || fetchStatus === "loading") ? 0.5 : 1,
+            }}
+          >
+            {fetchStatus === "loading" ? "…" : "Load"}
+          </button>
+        </div>
+
+        {fetchStatus === "error" && (
+          <div style={{ marginTop: 6, fontSize: 11, color: "#fca5a5", background: "#3a1a1a", border: "1px solid #ef4444", borderRadius: 7, padding: "6px 10px" }}>
+            ✗ {fetchError}
+          </div>
+        )}
+        {fetchStatus === "found" && (
+          <div style={{ marginTop: 6, fontSize: 11, color: "#d8b4fe", background: "#2e1a3a", border: "1px solid #a855f7", borderRadius: 7, padding: "6px 10px" }}>
+            ✓ Timetable loaded · {friendData.selectedMods.length} module{friendData.selectedMods.length !== 1 ? "s" : ""}
+          </div>
+        )}
+      </div>
+
+      {/* Step 2: Shared modules + lesson type picker */}
+      {fetchStatus === "found" && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>
+            2 · Modules to match
+          </div>
+
+          {sharedMods.length === 0 ? (
+            <div style={{ fontSize: 12, color: "#475569", padding: "10px 12px", background: "#0a1220", borderRadius: 8, border: "1px solid #1e293b" }}>
+              No modules in common. You and your friend haven't selected any of the same modules.
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {sharedMods.map(mod => {
+                const color = modColor(mod.code);
+                return (
+                  <div key={mod.code} style={{ background: color.bg, border: "1px solid " + color.border, borderRadius: 9, padding: "10px 12px" }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: color.text, marginBottom: 8 }}>
+                      {mod.code}
+                      <span style={{ fontSize: 10, fontWeight: 400, color: color.border, marginLeft: 6 }}>{mod.title}</span>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                      {mod.lessonTypes.map(lt => (
+                        <div
+                          key={lt.type}
+                          onClick={() => toggleMustMatch(mod.code, lt.type)}
+                          style={{
+                            display: "flex", alignItems: "center", justifyContent: "space-between",
+                            background: lt.mustMatch ? "#0a0f1a" : "transparent",
+                            border: "1px solid " + (lt.mustMatch ? color.border : "#1e293b"),
+                            borderRadius: 7, padding: "5px 10px", cursor: "pointer",
+                            transition: "all 0.15s",
+                          }}
+                        >
+                          <span style={{ fontSize: 11, fontWeight: 600, color: lt.mustMatch ? color.text : "#475569" }}>
+                            {lt.type}
+                          </span>
+                          <span style={{
+                            fontSize: 10, fontWeight: 700,
+                            color: lt.mustMatch ? color.border : "#e2e8f0",
+                            background: lt.mustMatch ? color.bg : "#0f1929",
+                            border: "1px solid " + (lt.mustMatch ? color.border : "#1e293b"),
+                            borderRadius: 6, padding: "2px 7px",
+                          }}>
+                            {lt.mustMatch ? "must match" : "skip"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Step 3: Check button */}
+      {fetchStatus === "found" && sharedMods.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>
+            3 · Check matches
+          </div>
+          <button
+            onClick={checkMatch}
+            disabled={checkedModCount === 0}
+            style={{
+              width: "100%", padding: "11px", borderRadius: 9,
+              background: checkedModCount > 0 ? "#2e1a3a" : "#0f1929",
+              border: "1px solid " + (checkedModCount > 0 ? "#a855f7" : "#1e293b"),
+              color: checkedModCount > 0 ? "#d8b4fe" : "#334155",
+              fontSize: 13, fontWeight: 700, cursor: checkedModCount > 0 ? "pointer" : "not-allowed",
+              fontFamily: "'DM Sans', sans-serif", transition: "all 0.15s",
+            }}
+          >
+            {checkedModCount === 0 ? "Select at least one lesson type" : `Check ${checkedModCount} module${checkedModCount !== 1 ? "s" : ""}`}
+          </button>
+        </div>
+      )}
+
+      {/* Results */}
+      {hasChecked && matchResults && (
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>
+            Results
+          </div>
+
+          {matchResults.matches.length === 0 && matchResults.mismatches.length === 0 && (
+            <div style={{ fontSize: 12, color: "#475569", padding: "10px 12px", background: "#0a1220", borderRadius: 8, border: "1px solid #1e293b" }}>
+              No lesson types were checked.
+            </div>
+          )}
+
+          {matchResults.matches.length > 0 && (
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 11, color: "#10b981", fontWeight: 700, marginBottom: 6 }}>
+                ✓ {matchResults.matches.length} match{matchResults.matches.length !== 1 ? "es" : ""}
+              </div>
+              {matchResults.matches.map((m, i) => {
+                const color = modColor(m.modCode);
+                return (
+                  <div key={i} style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "7px 10px", marginBottom: 5, borderRadius: 7,
+                    background: "#0d2218", border: "1px solid #10b981",
+                  }}>
+                    <div>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: color.text }}>{m.modCode}</span>
+                      <span style={{ fontSize: 11, color: "#64748b", marginLeft: 6 }}>{m.lessonType}</span>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#10b981", background: "#0a2018", border: "1px solid #10b981", borderRadius: 6, padding: "2px 8px" }}>
+                      [{m.classNo}]
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {matchResults.mismatches.length > 0 && (
+            <div>
+              <div style={{ fontSize: 11, color: "#f97316", fontWeight: 700, marginBottom: 6 }}>
+                ✗ {matchResults.mismatches.length} mismatch{matchResults.mismatches.length !== 1 ? "es" : ""}
+              </div>
+              {matchResults.mismatches.map((m, i) => {
+                const color = modColor(m.modCode);
+                const swapKey = `${m.modCode}:${m.lessonType}`;
+                const swapErr = swapErrors[swapKey];
+                const swapped = swapDone[swapKey];
+                return (
+                  <div key={i} style={{
+                    padding: "8px 10px", marginBottom: 5, borderRadius: 7,
+                    background: swapped ? "#0d2218" : "#1a0d00",
+                    border: "1px solid " + (swapped ? "#10b981" : "#f97316"),
+                    transition: "all 0.2s",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: (m.myClass || m.friendClass) ? 6 : 0 }}>
+                      <div>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: color.text }}>{m.modCode}</span>
+                        <span style={{ fontSize: 11, color: "#64748b", marginLeft: 6 }}>{m.lessonType}</span>
+                      </div>
+                      <span style={{ fontSize: 10, color: swapped ? "#10b981" : "#f97316", fontWeight: 700 }}>
+                        {swapped ? "swapped ✓" : "different slot"}
+                      </span>
+                    </div>
+                    {(m.myClass || m.friendClass) && (
+                      <>
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: swapped ? 0 : 8 }}>
+                          {m.myClass && (
+                            <span style={{ fontSize: 10, color: "#93c5fd", background: "#0f1929", border: "1px solid #1e3a5f", borderRadius: 5, padding: "2px 7px" }}>
+                              You: [{m.myClass}]
+                            </span>
+                          )}
+                          {m.friendClass && (
+                            <span style={{ fontSize: 10, color: "#d8b4fe", background: "#1a0d20", border: "1px solid #a855f7", borderRadius: 5, padding: "2px 7px" }}>
+                              Friend: [{m.friendClass}]
+                            </span>
+                          )}
+                        </div>
+                        {!swapped && m.friendClass && (
+                          <button
+                            onClick={() => {
+                              const clash = getSwapClash(m.modCode, m.lessonType, m.friendClass);
+                              if (clash) {
+                                setSwapErrors(prev => ({ ...prev, [swapKey]: clash }));
+                              } else {
+                                setSwapErrors(prev => ({ ...prev, [swapKey]: null }));
+                                setSwapDone(prev => ({ ...prev, [swapKey]: true }));
+                                onSwap(m.modCode, m.lessonType, m.friendClass);
+                              }
+                            }}
+                            style={{
+                              width: "100%", padding: "6px 10px", borderRadius: 7,
+                              background: "#2e1a3a", border: "1px solid #a855f7",
+                              color: "#d8b4fe", fontSize: 11, fontWeight: 700,
+                              cursor: "pointer", fontFamily: "'DM Sans', sans-serif",
+                              textAlign: "left",
+                            }}
+                          >
+                            → Switch to [{m.friendClass}] to match friend
+                          </button>
+                        )}
+                        {swapErr && (
+                          <div style={{ marginTop: 5, fontSize: 10, color: "#fca5a5", background: "#3a1a1a", border: "1px solid #ef4444", borderRadius: 6, padding: "5px 8px" }}>
+                            ✗ Can't swap — {swapErr}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {matchResults.matches.length > 0 && matchResults.mismatches.length === 0 && (
+            <div style={{ marginTop: 10, padding: "10px 12px", background: "#0d2218", border: "1px solid #10b981", borderRadius: 8, fontSize: 12, color: "#6ee7b7", fontWeight: 600, textAlign: "center" }}>
+              🎉 All selected slots match!
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Hint when no timetable loaded yet */}
+      {fetchStatus === "idle" && (
+        <div style={{ marginTop: 8, padding: "12px", background: "#0a1220", border: "1px dashed #2e1a3a", borderRadius: 8 }}>
+          <div style={{ fontSize: 11, color: "#475569", lineHeight: 1.6 }}>
+            Both you and your friend must save your timetables first. Then enter their email above to check for matching class slots.
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ── MAIN PAGE ───────────────────────────────────────────────────────────────
 
 export default function TimetablePage() {
   const navigate = useNavigate();
@@ -588,7 +1008,7 @@ export default function TimetablePage() {
   const [noGaps, setNoGaps] = useState(false);
   const [freeBlock, setFreeBlock] = useState({ enabled: false, from: "12", to: "14" });
   const [dayBlocks, setDayBlocks] = useState(makeEmptyDayBlocks());
-  const [enabledDays, setEnabledDays] = useState(makeAllDaysEnabled()); // ← NEW
+  const [enabledDays, setEnabledDays] = useState(makeAllDaysEnabled());
   const [maxConsec, setMaxConsec] = useState({ enabled: false, hours: 3 });
   const [bufferHours, setBufferHours] = useState({ enabled: false, hours: 1 });
 
@@ -638,7 +1058,6 @@ export default function TimetablePage() {
         setSelections(savedSelections);
         setMode(savedMode);
 
-        // Re-fetch lessons for each saved mod
         const restoredMods = await Promise.all(
           savedMods.map(async (m, i) => {
             const r = await fetch(`${API}/modules/${m.code}/lessons`);
@@ -650,7 +1069,6 @@ export default function TimetablePage() {
 
         setSelectedMods(restoredMods);
 
-        // Rebuild the grid
         const { grid, conflicts: cErrs } = buildGrid(restoredMods, savedSelections, savedDayBlocks, savedEnabledDays);
         if (cErrs.length === 0) {
           setSchedule({ grid });
@@ -701,6 +1119,20 @@ export default function TimetablePage() {
   function handleSelectionChange(modCode, lessonType, classNo) {
     setSelections((prev) => ({ ...prev, [modCode]: { ...prev[modCode], [lessonType]: classNo } }));
     setSchedule(null); setConflicts([]); setScoreData(null);
+  }
+
+  // Accepts an explicit selectionMap so it can be called immediately after a swap
+  // without waiting for React state to flush
+  function generateWithSelections(selMap) {
+    setConflicts([]); setSchedule(null);
+    const { grid, conflicts: cErrs } = buildGrid(selectedMods, selMap, dayBlocks, enabledDays);
+    const critErrs = checkCriteria(grid, { noGaps, freeBlock, maxConsec, bufferHours }, dayBlocks, enabledDays);
+    const allErrs = [...cErrs, ...critErrs];
+    setConflicts(allErrs);
+    if (allErrs.length === 0) {
+      setSchedule({ grid });
+      setScoreData(scoreSchedule(grid, { noGaps, freeBlock, maxConsec, bufferHours }, enabledDays));
+    }
   }
 
   function generate() {
@@ -786,7 +1218,6 @@ export default function TimetablePage() {
   }
 
   function renderCell(grid, day, hour) {
-    // Greyed-out overlay for disabled days
     if (!enabledDays[day]) {
       return (
         <div style={{
@@ -888,6 +1319,11 @@ export default function TimetablePage() {
     );
   }
 
+  // The active selection map (auto uses the chosen option's selectionMap)
+  const activeSelectionMap = mode === "auto" && autoResults.length > 0
+    ? autoResults[selectedResult]?.selectionMap ?? selections
+    : selections;
+
   const activeGrid = mode === "auto" && autoResults.length > 0
     ? autoResults[selectedResult]?.grid
     : schedule?.grid;
@@ -959,10 +1395,10 @@ export default function TimetablePage() {
           </div>
         </div>
 
-        {/* Panels */}
+        {/* 4-column panel layout */}
         <div style={styles.panels}>
 
-          {/* UNITS */}
+          {/* COL 1: Units + Score stacked */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div style={styles.unitsPanel} className="fade-up">
               <UnitsTracker selectedMods={selectedMods} />
@@ -972,7 +1408,7 @@ export default function TimetablePage() {
             </div>
           </div>
 
-          {/* LEFT */}
+          {/* COL 2: Modules */}
           <div style={styles.leftPanel} className="fade-up">
             <div style={styles.panelTitle}>Modules</div>
             <div ref={searchRef} style={{ position: "relative", marginBottom: 16 }}>
@@ -1074,11 +1510,10 @@ export default function TimetablePage() {
             </div>
           </div>
 
-          {/* RIGHT */}
+          {/* COL 3: Filters */}
           <div style={styles.rightPanel} className="fade-up">
             <div style={styles.panelTitle}>Filters</div>
 
-            {/* ── Day toggles ── */}
             <div style={{ ...styles.fg, marginBottom: 14 }}>
               <DayToggles enabledDays={enabledDays} setEnabledDays={setEnabledDays} />
             </div>
@@ -1121,7 +1556,6 @@ export default function TimetablePage() {
               )}
             </div>
 
-            {/* Max consecutive hours */}
             <div style={{ ...styles.fg, background: "#0a1220", borderRadius: 10, padding: 12, border: "1px solid #1e293b" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: maxConsec.enabled ? 12 : 0 }}>
                 <div>
@@ -1144,7 +1578,6 @@ export default function TimetablePage() {
               )}
             </div>
 
-            {/* Buffer between runs */}
             <div style={{ ...styles.fg, background: "#0a1220", borderRadius: 10, padding: 12, border: "1px solid #1e293b", opacity: maxConsec.enabled ? 1 : 0.4 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: bufferHours.enabled ? 12 : 0 }}>
                 <div>
@@ -1173,7 +1606,6 @@ export default function TimetablePage() {
               )}
             </div>
 
-            {/* Per-day blocks */}
             <div style={{ ...styles.fg, marginBottom: 14 }}>
               <DayBlocksEditor dayBlocks={dayBlocks} setDayBlocks={setDayBlocks} />
             </div>
@@ -1208,6 +1640,27 @@ export default function TimetablePage() {
               </div>
             )}
           </div>
+
+          {/* COL 4: Friend Match */}
+          <div style={styles.friendPanel} className="fade-up">
+            <FriendMatchPanel
+              selectedMods={selectedMods}
+              mySelectionMap={activeSelectionMap}
+              userEmail={userEmail}
+              dayBlocks={dayBlocks}
+              enabledDays={enabledDays}
+              onSwap={(modCode, lessonType, classNo) => {
+                const newSelections = {
+                  ...selections,
+                  [modCode]: { ...(selections[modCode] || {}), [lessonType]: classNo },
+                };
+                setSelections(newSelections);
+                setMode("manual");
+                generateWithSelections(newSelections);
+              }}
+            />
+          </div>
+
         </div>
 
         {/* Timetable */}
@@ -1249,13 +1702,15 @@ export default function TimetablePage() {
 const styles = {
   root: { minHeight: "100vh", fontFamily: "'DM Sans', sans-serif", position: "relative" },
   bg: { position: "fixed", inset: 0, background: "linear-gradient(135deg,#060d1a 0%,#0a1628 50%,#060d1a 100%)", zIndex: 0 },
-  page: { position: "relative", zIndex: 1, maxWidth: 1400, margin: "0 auto", padding: "24px 24px 48px" },
+  page: { position: "relative", zIndex: 1, maxWidth: 1600, margin: "0 auto", padding: "24px 24px 48px" },
   header: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 },
   logoIcon: { width: 36, height: 36, background: "#0f1929", border: "1px solid #1e3a5f", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center" },
-  panels: { display: "grid", gridTemplateColumns: "260px 1fr 280px", gap: 16, marginBottom: 20 },
+  // 4-column layout: units/score | modules | filters | friend match
+  panels: { display: "grid", gridTemplateColumns: "200px 1fr 260px 260px", gap: 16, marginBottom: 20 },
   unitsPanel: { background: "#080d16", border: "1px solid #1e293b", borderRadius: 16, padding: 20, display: "flex", flexDirection: "column" },
   leftPanel: { background: "#080d16", border: "1px solid #1e293b", borderRadius: 16, padding: 20, display: "flex", flexDirection: "column", minHeight: 380 },
   rightPanel: { background: "#080d16", border: "1px solid #1e293b", borderRadius: 16, padding: 20, display: "flex", flexDirection: "column", overflowY: "auto", maxHeight: "80vh" },
+  friendPanel: { background: "#080d16", border: "1px solid #2e1a3a", borderRadius: 16, padding: 20, display: "flex", flexDirection: "column", overflowY: "auto", maxHeight: "80vh" },
   panelTitle: { fontFamily: "'Sora',sans-serif", fontSize: 13, fontWeight: 800, color: "#2563EB", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 14 },
   sectionLabel: { fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 },
   fg: { marginBottom: 14 },
