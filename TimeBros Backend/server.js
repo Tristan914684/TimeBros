@@ -157,4 +157,40 @@ app.post("/reset-password", async (req, res) => {
   }
 });
 
+// Save timetable
+app.post("/schedules", async (req, res) => {
+  const { email, selectionMap, selectedMods, dayBlocks, enabledDays } = req.body;
+  try {
+    await pool.query(
+      `INSERT INTO saved_schedules (email, selection_map, selected_mods, day_blocks, enabled_days, updated_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())
+       ON CONFLICT (email) DO UPDATE SET
+         selection_map = $2,
+         selected_mods = $3,
+         day_blocks = $4,
+         enabled_days = $5,
+         updated_at = NOW()`,
+      [email, selectionMap, JSON.stringify(selectedMods), JSON.stringify(dayBlocks), JSON.stringify(enabledDays)]
+    );
+    res.json({ message: "Schedule saved." });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get a user's saved schedule (for friend matching)
+app.get("/schedules/:email", async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT * FROM saved_schedules WHERE email = $1",
+      [req.params.email]
+    );
+    if (result.rows.length === 0)
+      return res.status(404).json({ error: "No saved schedule found for this user." });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.listen(3001, () => console.log("Server running on port 3001"));
