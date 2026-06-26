@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
-const API = "http://localhost:3001";
+const API = "https://timebros.onrender.com";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 const DAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri"];

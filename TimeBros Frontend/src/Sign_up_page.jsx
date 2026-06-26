@@ -26,7 +26,7 @@ export default function Sign_up_page() {
         setError("");
 
         try {
-            const res = await fetch("http://localhost:3001/signup", {
+            const res = await fetch("https://timebros.onrender.com/signup", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, password }),

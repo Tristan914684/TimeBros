@@ -17,7 +17,7 @@ export default function Forgot_password_page() {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:3001/forgot-password", {
+      const res = await fetch("https://timebros.onrender.com/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -37,7 +37,7 @@ export default function Forgot_password_page() {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:3001/verify-otp", {
+      const res = await fetch("https://timebros.onrender.com/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp }),
@@ -64,7 +64,7 @@ export default function Forgot_password_page() {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:3001/reset-password", {
+      const res = await fetch("https://timebros.onrender.com/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp, newPassword }),
