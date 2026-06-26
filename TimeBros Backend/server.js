@@ -11,11 +11,8 @@ app.use(cors());
 app.use(express.json());
 
 const pool = new Pool({
-  user: "postgres",
-  host: "localhost",
-  database: "Timebros",
-  password: "Timebros",
-  port: 5432,
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
 });
 
 const transporter = nodemailer.createTransport({
@@ -159,18 +156,20 @@ app.post("/reset-password", async (req, res) => {
 
 // Save timetable
 app.post("/schedules", async (req, res) => {
-  const { email, selectionMap, selectedMods, dayBlocks, enabledDays } = req.body;
+  const { email, selectionMap, selectedMods, dayBlocks, enabledDays, selectedResult, mode } = req.body;
   try {
     await pool.query(
-      `INSERT INTO saved_schedules (email, selection_map, selected_mods, day_blocks, enabled_days, updated_at)
-       VALUES ($1, $2, $3, $4, $5, NOW())
+      `INSERT INTO saved_schedules (email, selection_map, selected_mods, day_blocks, enabled_days, selected_result, mode, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
        ON CONFLICT (email) DO UPDATE SET
          selection_map = $2,
          selected_mods = $3,
          day_blocks = $4,
          enabled_days = $5,
+         selected_result = $6,
+         mode = $7,
          updated_at = NOW()`,
-      [email, selectionMap, JSON.stringify(selectedMods), JSON.stringify(dayBlocks), JSON.stringify(enabledDays)]
+      [email, selectionMap, JSON.stringify(selectedMods), JSON.stringify(dayBlocks), JSON.stringify(enabledDays), selectedResult ?? 0, mode ?? 'manual']
     );
     res.json({ message: "Schedule saved." });
   } catch (err) {
