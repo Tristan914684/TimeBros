@@ -39,7 +39,7 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        navigate('/timetable', {state: { email: email } });
+        navigate('/timetable', { state: { email: email } });
       } else {
         setError(data.error);
       }
@@ -181,7 +181,6 @@ export default function LoginPage() {
                 { title: "Stay Productive", sub: "Focus on what matters most" },
               ].map((f) => (
                 <div key={f.title} style={styles.featureItem}>
-                  <div style={styles.featureIcon}>{f.icon}</div>
                   <div>
                     <div style={{ fontSize: 11.5, fontWeight: 700, color: "#1e293b" }}>{f.title}</div>
                     <div style={{ fontSize: 10.5, color: "#64748b", marginTop: 1 }}>{f.sub}</div>
