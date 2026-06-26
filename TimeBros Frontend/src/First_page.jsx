@@ -176,9 +176,9 @@ export default function LoginPage() {
 
             <div style={styles.features}>
               {[
-                { icon: "📅", title: "Organize Classes", sub: "Plan your timetable with ease" },
-                { icon: "📋", title: "Track Deadlines", sub: "Never miss an assignment or exam" },
-                { icon: "📈", title: "Stay Productive", sub: "Focus on what matters most" },
+                { title: "Organize Classes", sub: "Plan your timetable with ease" },
+                { title: "Track Deadlines", sub: "Never miss an assignment or exam" },
+                { title: "Stay Productive", sub: "Focus on what matters most" },
               ].map((f) => (
                 <div key={f.title} style={styles.featureItem}>
                   <div style={styles.featureIcon}>{f.icon}</div>
