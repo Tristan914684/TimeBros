@@ -1066,10 +1066,8 @@ export default function TimetablePage() {
         setSelectedMods(restoredMods);
 
         const { grid, conflicts: cErrs } = buildGrid(restoredMods, savedSelections, savedDayBlocks, savedEnabledDays);
-        if (cErrs.length === 0) {
-          setSchedule({ grid });
-          setScoreData(scoreSchedule(grid, { noGaps, freeBlock, maxConsec, bufferHours }, savedEnabledDays));
-        }
+        setSchedule({ grid });
+        setScoreData(scoreSchedule(grid, { noGaps, freeBlock, maxConsec, bufferHours }, savedEnabledDays));
       })
       .catch(() => { });
   }, [userEmail]);
