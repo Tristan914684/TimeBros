@@ -7,7 +7,9 @@ const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: ["https://time-bros-1w2ck1xkg-tristan914684s-projects.vercel.app", "http://localhost:5173"]
+}));
 app.use(express.json());
 
 const pool = new Pool({
