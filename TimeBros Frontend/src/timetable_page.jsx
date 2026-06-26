@@ -548,33 +548,29 @@ function DayToggles({ enabledDays, setEnabledDays }) {
   );
 }
 
-// ── FRIEND MATCH PANEL ──────────────────────────────────────────────────────
-
 function FriendMatchPanel({ selectedMods, mySelectionMap, userEmail, dayBlocks, enabledDays, onSwap }) {
   const [friendEmail, setFriendEmail] = useState("");
-  const [friendData, setFriendData] = useState(null); // { selectionMap, selectedMods }
-  const [fetchStatus, setFetchStatus] = useState("idle"); // idle | loading | found | error
+  const [friendData, setFriendData] = useState(null); 
+  const [fetchStatus, setFetchStatus] = useState("idle"); 
   const [fetchError, setFetchError] = useState("");
 
-  // Modules both users share
-  const [sharedMods, setSharedMods] = useState([]); // [{ code, lessonTypes: [{ type, mustMatch: bool }] }]
-  const [matchResults, setMatchResults] = useState(null); // null | { matches, mismatches }
+  const [sharedMods, setSharedMods] = useState([]); 
+  const [matchResults, setMatchResults] = useState(null); 
   const [hasChecked, setHasChecked] = useState(false);
-  // swapErrors: key = `${modCode}:${lessonType}` → error string or null
+
   const [swapErrors, setSwapErrors] = useState({});
   const [swapDone, setSwapDone] = useState({});
 
-  // Check if swapping modCode's lessonType to targetClassNo would clash with anything else
+
   function getSwapClash(modCode, lessonType, targetClassNo) {
     const mod = selectedMods.find(m => m.code === modCode);
     if (!mod) return null;
     const slots = mod.grouped?.[lessonType]?.[targetClassNo] || [];
 
-    // Build a grid of all other current slots (excluding this specific lessonType of this mod)
-    const occupied = {}; // "Day|hour" → label
+    const occupied = {}; 
     DAYS.forEach(day => {
       if (!enabledDays[day]) return;
-      // Personal blocks
+
       for (const block of (dayBlocks[day] || [])) {
         const fromH = parseInt(block.from, 10);
         const toH = parseInt(block.to, 10);
@@ -584,7 +580,6 @@ function FriendMatchPanel({ selectedMods, mySelectionMap, userEmail, dayBlocks, 
 
     for (const m of selectedMods) {
       for (const [lt, classNos] of Object.entries(m.grouped || {})) {
-        // Skip the slot we're about to replace
         if (m.code === modCode && lt === lessonType) continue;
         const chosenClass = mySelectionMap[m.code]?.[lt] || Object.keys(classNos)[0];
         for (const lesson of (classNos[chosenClass] || [])) {
@@ -598,7 +593,6 @@ function FriendMatchPanel({ selectedMods, mySelectionMap, userEmail, dayBlocks, 
       }
     }
 
-    // Now check the target slots
     for (const lesson of slots) {
       if (!enabledDays[lesson.day]) continue;
       const startH = timeToHour(lesson.start_time);
@@ -611,7 +605,6 @@ function FriendMatchPanel({ selectedMods, mySelectionMap, userEmail, dayBlocks, 
     return null;
   }
 
-  // When friend data arrives or selectedMods changes, rebuild sharedMods list
   useEffect(() => {
     if (!friendData) { setSharedMods([]); setMatchResults(null); setHasChecked(false); return; }
 
@@ -693,7 +686,6 @@ function FriendMatchPanel({ selectedMods, mySelectionMap, userEmail, dayBlocks, 
         const myClass = mySelectionMap[mod.code]?.[lt.type]
           || Object.keys(selectedMods.find(m => m.code === mod.code)?.grouped?.[lt.type] || {})[0];
         const friendRawClass = friendData.selectionMap[mod.code]?.[lt.type];
-        // Fall back to first class in friend's grouped data for this module if not explicitly saved
         const friendMod = selectedMods.find(m => m.code === mod.code);
         const friendClass = friendRawClass
           || Object.keys(friendMod?.grouped?.[lt.type] || {})[0];
@@ -991,8 +983,6 @@ function FriendMatchPanel({ selectedMods, mySelectionMap, userEmail, dayBlocks, 
   );
 }
 
-// ── MAIN PAGE ───────────────────────────────────────────────────────────────
-
 export default function TimetablePage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -1121,8 +1111,6 @@ export default function TimetablePage() {
     setSchedule(null); setConflicts([]); setScoreData(null);
   }
 
-  // Accepts an explicit selectionMap so it can be called immediately after a swap
-  // without waiting for React state to flush
   function generateWithSelections(selMap) {
     setConflicts([]); setSchedule(null);
     const { grid, conflicts: cErrs } = buildGrid(selectedMods, selMap, dayBlocks, enabledDays);
@@ -1211,7 +1199,7 @@ export default function TimetablePage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      alert("Timetable saved!");
+      alert("Timetable saved");
     } catch (err) {
       alert("Failed to save: " + err.message);
     }
@@ -1319,7 +1307,6 @@ export default function TimetablePage() {
     );
   }
 
-  // The active selection map (auto uses the chosen option's selectionMap)
   const activeSelectionMap = mode === "auto" && autoResults.length > 0
     ? autoResults[selectedResult]?.selectionMap ?? selections
     : selections;
@@ -1705,7 +1692,6 @@ const styles = {
   page: { position: "relative", zIndex: 1, maxWidth: 1600, margin: "0 auto", padding: "24px 24px 48px" },
   header: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 },
   logoIcon: { width: 36, height: 36, background: "#0f1929", border: "1px solid #1e3a5f", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center" },
-  // 4-column layout: units/score | modules | filters | friend match
   panels: { display: "grid", gridTemplateColumns: "200px 1fr 260px 260px", gap: 16, marginBottom: 20 },
   unitsPanel: { background: "#080d16", border: "1px solid #1e293b", borderRadius: 16, padding: 20, display: "flex", flexDirection: "column" },
   leftPanel: { background: "#080d16", border: "1px solid #1e293b", borderRadius: 16, padding: 20, display: "flex", flexDirection: "column", minHeight: 380 },
