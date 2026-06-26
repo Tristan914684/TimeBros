@@ -550,12 +550,12 @@ function DayToggles({ enabledDays, setEnabledDays }) {
 
 function FriendMatchPanel({ selectedMods, mySelectionMap, userEmail, dayBlocks, enabledDays, onSwap }) {
   const [friendEmail, setFriendEmail] = useState("");
-  const [friendData, setFriendData] = useState(null); 
-  const [fetchStatus, setFetchStatus] = useState("idle"); 
+  const [friendData, setFriendData] = useState(null);
+  const [fetchStatus, setFetchStatus] = useState("idle");
   const [fetchError, setFetchError] = useState("");
 
-  const [sharedMods, setSharedMods] = useState([]); 
-  const [matchResults, setMatchResults] = useState(null); 
+  const [sharedMods, setSharedMods] = useState([]);
+  const [matchResults, setMatchResults] = useState(null);
   const [hasChecked, setHasChecked] = useState(false);
 
   const [swapErrors, setSwapErrors] = useState({});
@@ -567,7 +567,7 @@ function FriendMatchPanel({ selectedMods, mySelectionMap, userEmail, dayBlocks, 
     if (!mod) return null;
     const slots = mod.grouped?.[lessonType]?.[targetClassNo] || [];
 
-    const occupied = {}; 
+    const occupied = {};
     DAYS.forEach(day => {
       if (!enabledDays[day]) return;
 
@@ -1035,6 +1035,7 @@ export default function TimetablePage() {
     fetch(`${API}/schedules/${userEmail}`)
       .then(r => r.json())
       .then(async (data) => {
+        console.log("Loaded data:", data);
         if (data.error) return;
 
         const savedSelections = data.selection_map;
@@ -1047,6 +1048,11 @@ export default function TimetablePage() {
         setEnabledDays(savedEnabledDays);
         setSelections(savedSelections);
         setMode(savedMode);
+
+        if (data.no_gaps !== undefined) setNoGaps(data.no_gaps);
+        if (data.free_block) setFreeBlock(data.free_block);
+        if (data.max_consec) setMaxConsec(data.max_consec);
+        if (data.buffer_hours) setBufferHours(data.buffer_hours);
 
         const restoredMods = await Promise.all(
           savedMods.map(async (m, i) => {
@@ -1195,13 +1201,16 @@ export default function TimetablePage() {
           enabledDays,
           selectedResult: mode === "auto" ? selectedResult : 0,
           mode,
+          no_gaps: noGaps,
+          free_block: freeBlock,
+          max_consec: maxConsec,
+          buffer_hours: bufferHours,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      alert("Timetable saved");
     } catch (err) {
-      alert("Failed to save: " + err.message);
+      console.error("Failed to save:", err.message);
     }
   }
 
