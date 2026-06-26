@@ -173,7 +173,15 @@ app.post("/schedules", async (req, res) => {
          selected_result = $6,
          mode = $7,
          updated_at = NOW()`,
-      [email, selectionMap, JSON.stringify(selectedMods), JSON.stringify(dayBlocks), JSON.stringify(enabledDays), selectedResult ?? 0, mode ?? 'manual']
+      [
+        email,
+        typeof selectionMap === 'string' ? selectionMap : JSON.stringify(selectionMap),
+        typeof selectedMods === 'string' ? selectedMods : JSON.stringify(selectedMods),
+        typeof dayBlocks === 'string' ? dayBlocks : JSON.stringify(dayBlocks),
+        typeof enabledDays === 'string' ? enabledDays : JSON.stringify(enabledDays),
+        selectedResult ?? 0,
+        mode ?? 'manual'
+      ]
     );
     res.json({ message: "Schedule saved." });
   } catch (err) {
