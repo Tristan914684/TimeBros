@@ -8,7 +8,8 @@ const crypto = require("crypto");
 
 const app = express();
 app.use(cors({
-  origin: ["https://time-bros-1w2ck1xkg-tristan914684s-projects.vercel.app", "http://localhost:5173"]
+  origin: ["https://time-bros.vercel.app", "http://localhost:5173"],
+  credentials: true,
 }));
 app.use(express.json());
 
