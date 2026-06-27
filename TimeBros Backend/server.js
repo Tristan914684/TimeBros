@@ -170,16 +170,16 @@ app.post("/schedules", async (req, res) => {
          updated_at = NOW()`,
       [
         email,
-        selectionMap,
-        selectedMods,
-        dayBlocks,
-        enabledDays,
+        JSON.stringify(selectionMap),
+        JSON.stringify(selectedMods),
+        JSON.stringify(dayBlocks),
+        JSON.stringify(enabledDays),
         selectedResult ?? 0,
         mode ?? 'manual',
         no_gaps ?? false,
-        free_block ?? null,
-        max_consec ?? null,
-        buffer_hours ?? null,
+        JSON.stringify(free_block ?? { enabled: false, from: "12", to: "14" }),
+        JSON.stringify(max_consec ?? { enabled: false, hours: 3 }),
+        JSON.stringify(buffer_hours ?? { enabled: false, hours: 1 }),
       ]
     );
     res.json({ message: "Schedule saved." });
