@@ -27,7 +27,6 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Sign up route
 app.post("/signup", async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -46,7 +45,6 @@ app.post("/signup", async (req, res) => {
   }
 });
 
-// Login route
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -60,7 +58,6 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// Modules route
 app.get("/modules", async (req, res) => {
   try {
     const result = await pool.query("SELECT * FROM modules ORDER BY code");
@@ -70,7 +67,6 @@ app.get("/modules", async (req, res) => {
   }
 });
 
-// Lessons route
 app.get("/modules/:code/lessons", async (req, res) => {
   try {
     const result = await pool.query(
@@ -83,7 +79,6 @@ app.get("/modules/:code/lessons", async (req, res) => {
   }
 });
 
-// Step 1: Request OTP
 app.post("/forgot-password", async (req, res) => {
   const { email } = req.body;
   try {
@@ -91,7 +86,6 @@ app.post("/forgot-password", async (req, res) => {
     if (result.rows.length === 0)
       return res.status(404).json({ error: "Invalid email." });
 
-    // Check if OTP sent in the last 1 min
     const recentOtp = await pool.query(
       "SELECT * FROM password_reset_otps WHERE email = $1 AND created_at > NOW() - INTERVAL '1 minute' ORDER BY id DESC LIMIT 1",
       [email]
@@ -120,7 +114,6 @@ app.post("/forgot-password", async (req, res) => {
   }
 });
 
-// Step 2: Verify OTP
 app.post("/verify-otp", async (req, res) => {
   const { email, otp } = req.body;
   try {
@@ -137,7 +130,6 @@ app.post("/verify-otp", async (req, res) => {
   }
 });
 
-// Step 3: Reset Password
 app.post("/reset-password", async (req, res) => {
   const { email, otp, newPassword } = req.body;
   try {
@@ -158,13 +150,12 @@ app.post("/reset-password", async (req, res) => {
   }
 });
 
-// Save timetable
 app.post("/schedules", async (req, res) => {
-  const { email, selectionMap, selectedMods, dayBlocks, enabledDays, selectedResult, mode } = req.body;
+  const { email, selectionMap, selectedMods, dayBlocks, enabledDays, selectedResult, mode, no_gaps, free_block, max_consec, buffer_hours } = req.body;
   try {
     await pool.query(
-      `INSERT INTO saved_schedules (email, selection_map, selected_mods, day_blocks, enabled_days, selected_result, mode, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+      `INSERT INTO saved_schedules (email, selection_map, selected_mods, day_blocks, enabled_days, selected_result, mode, no_gaps, free_block, max_consec, buffer_hours, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
        ON CONFLICT (email) DO UPDATE SET
          selection_map = $2,
          selected_mods = $3,
@@ -172,15 +163,23 @@ app.post("/schedules", async (req, res) => {
          enabled_days = $5,
          selected_result = $6,
          mode = $7,
+         no_gaps = $8,
+         free_block = $9,
+         max_consec = $10,
+         buffer_hours = $11,
          updated_at = NOW()`,
       [
         email,
-        typeof selectionMap === 'string' ? selectionMap : JSON.stringify(selectionMap),
-        typeof selectedMods === 'string' ? selectedMods : JSON.stringify(selectedMods),
-        typeof dayBlocks === 'string' ? dayBlocks : JSON.stringify(dayBlocks),
-        typeof enabledDays === 'string' ? enabledDays : JSON.stringify(enabledDays),
+        selectionMap,
+        selectedMods,
+        dayBlocks,
+        enabledDays,
         selectedResult ?? 0,
-        mode ?? 'manual'
+        mode ?? 'manual',
+        no_gaps ?? false,
+        free_block ?? null,
+        max_consec ?? null,
+        buffer_hours ?? null,
       ]
     );
     res.json({ message: "Schedule saved." });
@@ -189,7 +188,6 @@ app.post("/schedules", async (req, res) => {
   }
 });
 
-// Get a user's saved schedule (for friend matching)
 app.get("/schedules/:email", async (req, res) => {
   try {
     const result = await pool.query(
@@ -199,6 +197,29 @@ app.get("/schedules/:email", async (req, res) => {
     if (result.rows.length === 0)
       return res.status(404).json({ error: "No saved schedule found for this user." });
     res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/run-migration", async (req, res) => {
+  try {
+    await pool.query(`DELETE FROM saved_schedules`);
+    await pool.query(`
+      ALTER TABLE saved_schedules 
+        ALTER COLUMN selection_map TYPE JSONB USING selection_map::jsonb,
+        ALTER COLUMN selected_mods TYPE JSONB USING selected_mods::jsonb,
+        ALTER COLUMN day_blocks TYPE JSONB USING day_blocks::jsonb,
+        ALTER COLUMN enabled_days TYPE JSONB USING enabled_days::jsonb
+    `);
+    await pool.query(`
+      ALTER TABLE saved_schedules 
+        ADD COLUMN IF NOT EXISTS no_gaps BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS free_block JSONB,
+        ADD COLUMN IF NOT EXISTS max_consec JSONB,
+        ADD COLUMN IF NOT EXISTS buffer_hours JSONB
+    `);
+    res.json({ message: "Migration done!" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
