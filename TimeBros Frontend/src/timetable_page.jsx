@@ -986,7 +986,7 @@ function FriendMatchPanel({ selectedMods, mySelectionMap, userEmail, dayBlocks, 
 export default function TimetablePage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const userEmail = location.state?.email || "user@example.com";
+  const userEmail = location.state?.email;
 
   const [allModules, setAllModules] = useState([]);
   const [search, setSearch] = useState("");
@@ -1031,28 +1031,34 @@ export default function TimetablePage() {
   }, []);
 
   useEffect(() => {
-    if (!userEmail || userEmail === "user@example.com") return;
-    fetch(`${API}/schedules/${userEmail}`)
+    if (!userEmail) {
+      navigate("/");
+      return;
+    }
+    fetch(`${API}/schedules/${encodeURIComponent(userEmail)}`)
       .then(r => r.json())
       .then(async (data) => {
-        console.log("Loaded data:", data);
-        if (data.error) return;
+        if (data.error || !data.selected_mods) return;
 
-        const savedSelections = data.selection_map;
-        const savedMods = data.selected_mods;
+        const savedSelections = data.selection_map || {};
+        const savedMods = data.selected_mods || [];
         const savedDayBlocks = data.day_blocks || makeEmptyDayBlocks();
         const savedEnabledDays = data.enabled_days || makeAllDaysEnabled();
         const savedMode = data.mode || "manual";
+        const savedCriteria = {
+          noGaps: data.no_gaps || false,
+          freeBlock: data.free_block || { enabled: false, from: "12", to: "14" },
+          maxConsec: data.max_consec || { enabled: false, hours: 3 },
+          bufferHours: data.buffer_hours || { enabled: false, hours: 1 },
+        };
 
         setDayBlocks(savedDayBlocks);
         setEnabledDays(savedEnabledDays);
-        setSelections(savedSelections);
         setMode(savedMode);
-
-        if (data.no_gaps !== undefined) setNoGaps(data.no_gaps);
-        if (data.free_block) setFreeBlock(data.free_block);
-        if (data.max_consec) setMaxConsec(data.max_consec);
-        if (data.buffer_hours) setBufferHours(data.buffer_hours);
+        setNoGaps(savedCriteria.noGaps);
+        setFreeBlock(savedCriteria.freeBlock);
+        setMaxConsec(savedCriteria.maxConsec);
+        setBufferHours(savedCriteria.bufferHours);
 
         const restoredMods = await Promise.all(
           savedMods.map(async (m, i) => {
@@ -1064,18 +1070,14 @@ export default function TimetablePage() {
         );
 
         setSelectedMods(restoredMods);
+        setSelections(savedSelections);
 
         const { grid } = buildGrid(restoredMods, savedSelections, savedDayBlocks, savedEnabledDays);
         setSchedule({ grid });
-        const savedCriteria = {
-          noGaps: data.no_gaps || false,
-          freeBlock: data.free_block || { enabled: false, from: "12", to: "14" },
-          maxConsec: data.max_consec || { enabled: false, hours: 3 },
-          bufferHours: data.buffer_hours || { enabled: false, hours: 1 },
-        };
+        setConflicts([]);
         setScoreData(scoreSchedule(grid, savedCriteria, savedEnabledDays));
       })
-      .catch(() => { });
+      .catch(err => console.error("Failed to load schedule:", err));
   }, [userEmail]);
 
   const filtered = allModules
@@ -1189,11 +1191,11 @@ export default function TimetablePage() {
   }
 
   async function saveSchedule() {
-    try {
-      const finalSelectionMap = mode === "auto" && autoResults.length > 0
-        ? autoResults[selectedResult].selectionMap
-        : selections;
+    const finalSelectionMap = mode === "auto" && autoResults.length > 0
+      ? autoResults[selectedResult].selectionMap
+      : selections;
 
+    try {
       const res = await fetch(`${API}/schedules`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1212,9 +1214,10 @@ export default function TimetablePage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(data.error || "Unknown error");
+      alert("Timetable saved!");
     } catch (err) {
-      console.error("Failed to save:", err.message);
+      alert("Save failed: " + err.message);
     }
   }
 
