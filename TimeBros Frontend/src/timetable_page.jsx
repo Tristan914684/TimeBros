@@ -1035,7 +1035,9 @@ export default function TimetablePage() {
       navigate("/");
       return;
     }
-    fetch(`${API}/schedules/${encodeURIComponent(userEmail)}`)
+    fetch(`${API}/schedules/${encodeURIComponent(userEmail)}`, {
+      headers: { "Cache-Control": "no-cache" }
+    })
       .then(r => r.json())
       .then(async (data) => {
         if (data.error || !data.selected_mods) return;
