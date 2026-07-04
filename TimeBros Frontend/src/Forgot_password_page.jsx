@@ -212,7 +212,6 @@ export default function Forgot_password_page() {
           {error && <div className="error-box">{error}</div>}
           {success && <div className="success-box">Password reset! Redirecting…</div>}
 
-          {/* Step 1: Email */}
           {step === 1 && (
             <>
               <div style={styles.fieldGroup}>
@@ -240,7 +239,6 @@ export default function Forgot_password_page() {
             </>
           )}
 
-          {/* Step 2: OTP */}
           {step === 2 && (
             <>
               <div style={styles.fieldGroup}>
@@ -268,7 +266,6 @@ export default function Forgot_password_page() {
             </>
           )}
 
-          {/* Step 3: New Password */}
           {step === 3 && (
             <>
               <div style={styles.fieldGroup}>
