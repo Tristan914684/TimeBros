@@ -265,14 +265,17 @@ function formatICSDate(date) {
   );
 }
 
-function getFirstOccurrence(semesterStartDate, dayName) {
-  const offset = DAY_INDEX[dayName];
-  const d = new Date(semesterStartDate);
-  d.setDate(d.getDate() + offset);
+function getFirstOccurrenceOnOrAfter(fromDate, dayName) {
+  const targetIdx = DAY_INDEX[dayName]; // Monday=0 ... Friday=4
+  const d = new Date(fromDate);
+  const currentIdx = (d.getDay() + 6) % 7; // JS Sun=0..Sat=6 -> Mon=0..Sun=6
+  let diff = targetIdx - currentIdx;
+  if (diff < 0) diff += 7;
+  d.setDate(d.getDate() + diff);
   return d;
 }
 
-function generateICS(selectedMods, selectionMap, dayBlocks, semesterStart, weeks) {
+function generateICS(selectedMods, selectionMap, dayBlocks, semesterStart, semesterEnd) {
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -281,6 +284,8 @@ function generateICS(selectedMods, selectionMap, dayBlocks, semesterStart, weeks
   ];
 
   const startDate = new Date(semesterStart + "T00:00:00");
+  const endDate = new Date(semesterEnd + "T23:59:59");
+  const untilStr = formatICSDate(endDate);
 
   // Class lessons
   for (const mod of selectedMods) {
@@ -290,7 +295,9 @@ function generateICS(selectedMods, selectionMap, dayBlocks, semesterStart, weeks
       for (const lesson of lessons) {
         if (!DAY_INDEX.hasOwnProperty(lesson.day)) continue;
 
-        const eventDate = getFirstOccurrence(startDate, lesson.day);
+        const eventDate = getFirstOccurrenceOnOrAfter(startDate, lesson.day);
+        if (eventDate > endDate) continue;
+
         const [startH, startM] = lesson.start_time.split(":").map(Number);
         const [endH, endM] = lesson.end_time.split(":").map(Number);
 
@@ -306,7 +313,7 @@ function generateICS(selectedMods, selectionMap, dayBlocks, semesterStart, weeks
         lines.push(`DTSTAMP:${formatICSDate(new Date())}Z`);
         lines.push(`DTSTART:${formatICSDate(dtStart)}`);
         lines.push(`DTEND:${formatICSDate(dtEnd)}`);
-        lines.push(`RRULE:FREQ=WEEKLY;COUNT=${weeks};BYDAY=${DAY_TO_ICS[lesson.day]}`);
+        lines.push(`RRULE:FREQ=WEEKLY;UNTIL=${untilStr};BYDAY=${DAY_TO_ICS[lesson.day]}`);
         lines.push(`SUMMARY:${mod.code} ${type} [${chosenClass}]`);
         if (lesson.venue) lines.push(`LOCATION:${lesson.venue}`);
         lines.push(`DESCRIPTION:${(mod.title || "").replace(/,/g, "\\,")}`);
@@ -323,7 +330,9 @@ function generateICS(selectedMods, selectionMap, dayBlocks, semesterStart, weeks
       const toH = parseInt(block.to, 10);
       if (!block.name || fromH >= toH) continue;
 
-      const eventDate = getFirstOccurrence(startDate, day);
+      const eventDate = getFirstOccurrenceOnOrAfter(startDate, day);
+      if (eventDate > endDate) continue;
+
       const dtStart = new Date(eventDate);
       dtStart.setHours(fromH, 0, 0);
       const dtEnd = new Date(eventDate);
@@ -336,7 +345,7 @@ function generateICS(selectedMods, selectionMap, dayBlocks, semesterStart, weeks
       lines.push(`DTSTAMP:${formatICSDate(new Date())}Z`);
       lines.push(`DTSTART:${formatICSDate(dtStart)}`);
       lines.push(`DTEND:${formatICSDate(dtEnd)}`);
-      lines.push(`RRULE:FREQ=WEEKLY;COUNT=${weeks};BYDAY=${DAY_TO_ICS[day]}`);
+      lines.push(`RRULE:FREQ=WEEKLY;UNTIL=${untilStr};BYDAY=${DAY_TO_ICS[day]}`);
       lines.push(`SUMMARY:${block.name.replace(/,/g, "\\,")}`);
       lines.push("END:VEVENT");
     }
@@ -1127,7 +1136,7 @@ export default function TimetablePage() {
   const [scoreData, setScoreData] = useState(null);
   const [mode, setMode] = useState("manual");
   const [semesterStart, setSemesterStart] = useState("");
-  const [semesterWeeks, setSemesterWeeks] = useState(13);
+  const [semesterEnd, setSemesterEnd] = useState("");
 
   useEffect(() => {
     fetch(`${API}/modules`)
@@ -1338,11 +1347,15 @@ export default function TimetablePage() {
   }
 
   function exportToCalendar() {
-    if (!semesterStart) {
-      alert("Please select your semester start date (should be a Monday).");
+    if (!semesterStart || !semesterEnd) {
+      alert("Please select both a start date and an end date.");
       return;
     }
-    const ics = generateICS(selectedMods, activeSelectionMap, dayBlocks, semesterStart, semesterWeeks);
+    if (new Date(semesterStart + "T00:00:00") > new Date(semesterEnd + "T00:00:00")) {
+      alert("End date must be on or after the start date.");
+      return;
+    }
+    const ics = generateICS(selectedMods, activeSelectionMap, dayBlocks, semesterStart, semesterEnd);
     downloadICS(ics, "timebros-timetable.ics");
   }
 
@@ -1798,7 +1811,7 @@ export default function TimetablePage() {
 
             <div style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>
-                Semester start (Monday)
+                Start date
               </div>
               <input
                 type="date"
@@ -1814,14 +1827,13 @@ export default function TimetablePage() {
 
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>
-                Number of weeks
+                End date
               </div>
               <input
-                type="number"
-                min={1}
-                max={20}
-                value={semesterWeeks}
-                onChange={(e) => setSemesterWeeks(parseInt(e.target.value, 10) || 1)}
+                type="date"
+                value={semesterEnd}
+                min={semesterStart || undefined}
+                onChange={(e) => setSemesterEnd(e.target.value)}
                 style={{
                   width: "100%", background: "#0f1929", border: "1px solid #1e293b",
                   borderRadius: 8, padding: "8px 10px", fontSize: 12, color: "white",
