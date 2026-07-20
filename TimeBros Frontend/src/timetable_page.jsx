@@ -246,6 +246,118 @@ function getAllCombinations(selectedMods) {
   return combos;
 }
 
+const DAY_TO_ICS = { Monday: "MO", Tuesday: "TU", Wednesday: "WE", Thursday: "TH", Friday: "FR" };
+const DAY_INDEX = { Monday: 0, Tuesday: 1, Wednesday: 2, Thursday: 3, Friday: 4 };
+
+function pad(n) {
+  return n < 10 ? "0" + n : "" + n;
+}
+
+function formatICSDate(date) {
+  return (
+    date.getFullYear() +
+    pad(date.getMonth() + 1) +
+    pad(date.getDate()) +
+    "T" +
+    pad(date.getHours()) +
+    pad(date.getMinutes()) +
+    "00"
+  );
+}
+
+function getFirstOccurrence(semesterStartDate, dayName) {
+  const offset = DAY_INDEX[dayName];
+  const d = new Date(semesterStartDate);
+  d.setDate(d.getDate() + offset);
+  return d;
+}
+
+function generateICS(selectedMods, selectionMap, dayBlocks, semesterStart, weeks) {
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//TimeBros//Timetable//EN",
+    "CALSCALE:GREGORIAN",
+  ];
+
+  const startDate = new Date(semesterStart + "T00:00:00");
+
+  // Class lessons
+  for (const mod of selectedMods) {
+    for (const [type, classNos] of Object.entries(mod.grouped || {})) {
+      const chosenClass = selectionMap[mod.code]?.[type] || Object.keys(classNos)[0];
+      const lessons = classNos[chosenClass] || [];
+      for (const lesson of lessons) {
+        if (!DAY_INDEX.hasOwnProperty(lesson.day)) continue;
+
+        const eventDate = getFirstOccurrence(startDate, lesson.day);
+        const [startH, startM] = lesson.start_time.split(":").map(Number);
+        const [endH, endM] = lesson.end_time.split(":").map(Number);
+
+        const dtStart = new Date(eventDate);
+        dtStart.setHours(startH, startM, 0);
+        const dtEnd = new Date(eventDate);
+        dtEnd.setHours(endH, endM, 0);
+
+        const uid = `${mod.code}-${type}-${chosenClass}-${lesson.day}@timebros`;
+
+        lines.push("BEGIN:VEVENT");
+        lines.push(`UID:${uid}`);
+        lines.push(`DTSTAMP:${formatICSDate(new Date())}Z`);
+        lines.push(`DTSTART:${formatICSDate(dtStart)}`);
+        lines.push(`DTEND:${formatICSDate(dtEnd)}`);
+        lines.push(`RRULE:FREQ=WEEKLY;COUNT=${weeks};BYDAY=${DAY_TO_ICS[lesson.day]}`);
+        lines.push(`SUMMARY:${mod.code} ${type} [${chosenClass}]`);
+        if (lesson.venue) lines.push(`LOCATION:${lesson.venue}`);
+        lines.push(`DESCRIPTION:${(mod.title || "").replace(/,/g, "\\,")}`);
+        lines.push("END:VEVENT");
+      }
+    }
+  }
+
+  // Personal blocks (lunch, gym, etc.)
+  for (const [day, blocks] of Object.entries(dayBlocks || {})) {
+    if (!DAY_INDEX.hasOwnProperty(day)) continue;
+    for (const block of blocks) {
+      const fromH = parseInt(block.from, 10);
+      const toH = parseInt(block.to, 10);
+      if (!block.name || fromH >= toH) continue;
+
+      const eventDate = getFirstOccurrence(startDate, day);
+      const dtStart = new Date(eventDate);
+      dtStart.setHours(fromH, 0, 0);
+      const dtEnd = new Date(eventDate);
+      dtEnd.setHours(toH, 0, 0);
+
+      const uid = `block-${day}-${block.name}-${fromH}@timebros`;
+
+      lines.push("BEGIN:VEVENT");
+      lines.push(`UID:${uid}`);
+      lines.push(`DTSTAMP:${formatICSDate(new Date())}Z`);
+      lines.push(`DTSTART:${formatICSDate(dtStart)}`);
+      lines.push(`DTEND:${formatICSDate(dtEnd)}`);
+      lines.push(`RRULE:FREQ=WEEKLY;COUNT=${weeks};BYDAY=${DAY_TO_ICS[day]}`);
+      lines.push(`SUMMARY:${block.name.replace(/,/g, "\\,")}`);
+      lines.push("END:VEVENT");
+    }
+  }
+
+  lines.push("END:VCALENDAR");
+  return lines.join("\r\n");
+}
+
+function downloadICS(content, filename = "timetable.ics") {
+  const blob = new Blob([content], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function UnitsTracker({ selectedMods }) {
   const totalUnits = selectedMods.reduce((sum, m) => sum + (m.credits || 0), 0);
   return (
@@ -1014,6 +1126,8 @@ export default function TimetablePage() {
   const [loadingMod, setLoadingMod] = useState(null);
   const [scoreData, setScoreData] = useState(null);
   const [mode, setMode] = useState("manual");
+  const [semesterStart, setSemesterStart] = useState("");
+  const [semesterWeeks, setSemesterWeeks] = useState(13);
 
   useEffect(() => {
     fetch(`${API}/modules`)
@@ -1221,6 +1335,15 @@ export default function TimetablePage() {
     } catch (err) {
       alert("Save failed: " + err.message);
     }
+  }
+
+  function exportToCalendar() {
+    if (!semesterStart) {
+      alert("Please select your semester start date (should be a Monday).");
+      return;
+    }
+    const ics = generateICS(selectedMods, activeSelectionMap, dayBlocks, semesterStart, semesterWeeks);
+    downloadICS(ics, "timebros-timetable.ics");
   }
 
   function renderCell(grid, day, hour) {
@@ -1665,6 +1788,72 @@ export default function TimetablePage() {
               }}
             />
           </div>
+          <div style={styles.friendPanel} className="fade-up">
+            <div style={{ fontFamily: "'Sora',sans-serif", fontSize: 13, fontWeight: 800, color: "#10b981", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 6 }}>
+              Export
+            </div>
+            <div style={{ fontSize: 11, color: "#475569", marginBottom: 14, lineHeight: 1.5 }}>
+              Export your timetable to your phone's calendar (iPhone or Android).
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>
+                Semester start (Monday)
+              </div>
+              <input
+                type="date"
+                value={semesterStart}
+                onChange={(e) => setSemesterStart(e.target.value)}
+                style={{
+                  width: "100%", background: "#0f1929", border: "1px solid #1e293b",
+                  borderRadius: 8, padding: "8px 10px", fontSize: 12, color: "white",
+                  fontFamily: "'DM Sans', sans-serif", outline: "none",
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>
+                Number of weeks
+              </div>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={semesterWeeks}
+                onChange={(e) => setSemesterWeeks(parseInt(e.target.value, 10) || 1)}
+                style={{
+                  width: "100%", background: "#0f1929", border: "1px solid #1e293b",
+                  borderRadius: 8, padding: "8px 10px", fontSize: 12, color: "white",
+                  fontFamily: "'DM Sans', sans-serif", outline: "none",
+                }}
+              />
+            </div>
+
+            <button
+              onClick={exportToCalendar}
+              disabled={!activeGrid}
+              style={{
+                width: "100%", padding: "11px", borderRadius: 9,
+                background: activeGrid ? "#0d2218" : "#0f1929",
+                border: "1px solid " + (activeGrid ? "#10b981" : "#1e293b"),
+                color: activeGrid ? "#6ee7b7" : "#334155",
+                fontSize: 13, fontWeight: 700,
+                cursor: activeGrid ? "pointer" : "not-allowed",
+                fontFamily: "'DM Sans', sans-serif",
+              }}
+            >
+              {activeGrid ? "📅 Export to Calendar" : "Generate a timetable first"}
+            </button>
+
+            {!activeGrid && (
+              <div style={{ marginTop: 8, padding: "12px", background: "#0a1220", border: "1px dashed #1e293b", borderRadius: 8 }}>
+                <div style={{ fontSize: 11, color: "#475569", lineHeight: 1.6 }}>
+                  Once you generate a timetable, you can download it as a file that adds directly to your phone's native calendar app.
+                </div>
+              </div>
+            )}
+          </div>
 
         </div>
 
@@ -1710,7 +1899,7 @@ const styles = {
   page: { position: "relative", zIndex: 1, maxWidth: 1600, margin: "0 auto", padding: "24px 24px 48px" },
   header: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 },
   logoIcon: { width: 36, height: 36, background: "#0f1929", border: "1px solid #1e3a5f", borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center" },
-  panels: { display: "grid", gridTemplateColumns: "200px 1fr 260px 260px", gap: 16, marginBottom: 20 },
+  panels: { display: "grid", gridTemplateColumns: "200px 1fr 260px 260px 260px", gap: 16, marginBottom: 20 },
   unitsPanel: { background: "#080d16", border: "1px solid #1e293b", borderRadius: 16, padding: 20, display: "flex", flexDirection: "column" },
   leftPanel: { background: "#080d16", border: "1px solid #1e293b", borderRadius: 16, padding: 20, display: "flex", flexDirection: "column", minHeight: 380 },
   rightPanel: { background: "#080d16", border: "1px solid #1e293b", borderRadius: 16, padding: 20, display: "flex", flexDirection: "column", overflowY: "auto", maxHeight: "80vh" },
