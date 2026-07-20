@@ -13,7 +13,7 @@ export default function Forgot_password_page() {
   const navigate = useNavigate();
 
   const handleSendOtp = async () => {
-    if (!email) return setError("Pleases enter your email.");
+    if (!email) return setError("Please enter your email.");
     setError("");
     setLoading(true);
     try {
