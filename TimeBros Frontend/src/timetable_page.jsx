@@ -1806,7 +1806,7 @@ export default function TimetablePage() {
               Export
             </div>
             <div style={{ fontSize: 11, color: "#475569", marginBottom: 14, lineHeight: 1.5 }}>
-              Export your timetable to your phone's calendar (iPhone or Android).
+              Export your timetable to your phone's calendar.
             </div>
 
             <div style={{ marginBottom: 12 }}>
@@ -1855,7 +1855,7 @@ export default function TimetablePage() {
                 fontFamily: "'DM Sans', sans-serif",
               }}
             >
-              {activeGrid ? "📅 Export to Calendar" : "Generate a timetable first"}
+              {activeGrid ? "Export to Calendar" : "Generate a timetable first"}
             </button>
 
             {!activeGrid && (
