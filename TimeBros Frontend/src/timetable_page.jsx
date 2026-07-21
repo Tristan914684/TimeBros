@@ -12,6 +12,18 @@ const TIME_OPTIONS = [
   "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00",
 ];
 
+const VTIMEZONE_SGT = [
+  "BEGIN:VTIMEZONE",
+  "TZID:Asia/Singapore",
+  "BEGIN:STANDARD",
+  "DTSTART:19700101T000000",
+  "TZOFFSETFROM:+0800",
+  "TZOFFSETTO:+0800",
+  "TZNAME:+08",
+  "END:STANDARD",
+  "END:VTIMEZONE",
+].join("\r\n");
+
 const MOD_COLORS = [
   { bg: "#1e3a5f", border: "#3b82f6", text: "#93c5fd" },
   { bg: "#1a3a2e", border: "#10b981", text: "#6ee7b7" },
@@ -253,26 +265,50 @@ function pad(n) {
   return n < 10 ? "0" + n : "" + n;
 }
 
-function formatICSDate(date) {
+
+
+// Parse "YYYY-MM-DD" into a UTC-midnight Date used purely as a calendar-day counter.
+// Using Date.UTC (not `new Date(str)`) means this never depends on the browser's system timezone.
+function parseDateOnlyUTC(dateStr) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
+function getFirstOccurrenceOnOrAfter(fromDateUTC, dayName) {
+  const targetIdx = DAY_INDEX[dayName];
+  const d = new Date(fromDateUTC);
+  const currentIdx = (d.getUTCDay() + 6) % 7;
+  let diff = targetIdx - currentIdx;
+  if (diff < 0) diff += 7;
+  d.setUTCDate(d.getUTCDate() + diff);
+  return d;
+}
+
+// SGT wall-clock string for this calendar day + given hour/min — pure formatting, no local Date math.
+function formatSGTWallClock(calDayUTC, hour, minute) {
   return (
-    date.getFullYear() +
-    pad(date.getMonth() + 1) +
-    pad(date.getDate()) +
-    "T" +
-    pad(date.getHours()) +
-    pad(date.getMinutes()) +
-    "00"
+    calDayUTC.getUTCFullYear() +
+    pad(calDayUTC.getUTCMonth() + 1) +
+    pad(calDayUTC.getUTCDate()) +
+    "T" + pad(hour) + pad(minute) + "00"
   );
 }
 
-function getFirstOccurrenceOnOrAfter(fromDate, dayName) {
-  const targetIdx = DAY_INDEX[dayName]; // Monday=0 ... Friday=4
-  const d = new Date(fromDate);
-  const currentIdx = (d.getDay() + 6) % 7; // JS Sun=0..Sat=6 -> Mon=0..Sun=6
-  let diff = targetIdx - currentIdx;
-  if (diff < 0) diff += 7;
-  d.setDate(d.getDate() + diff);
-  return d;
+// True UTC instant for a given SGT wall-clock day+time (SGT = UTC+8, no DST, ever).
+function sgtToUTC(calDayUTC, hour, minute) {
+  return new Date(Date.UTC(
+    calDayUTC.getUTCFullYear(),
+    calDayUTC.getUTCMonth(),
+    calDayUTC.getUTCDate(),
+    hour - 8, minute, 0
+  ));
+}
+
+function formatUTCStamp(date) {
+  return (
+    date.getUTCFullYear() + pad(date.getUTCMonth() + 1) + pad(date.getUTCDate()) +
+    "T" + pad(date.getUTCHours()) + pad(date.getUTCMinutes()) + pad(date.getUTCSeconds()) + "Z"
+  );
 }
 
 function generateICS(selectedMods, selectionMap, dayBlocks, semesterStart, semesterEnd) {
@@ -281,13 +317,13 @@ function generateICS(selectedMods, selectionMap, dayBlocks, semesterStart, semes
     "VERSION:2.0",
     "PRODID:-//TimeBros//Timetable//EN",
     "CALSCALE:GREGORIAN",
+    VTIMEZONE_SGT,
   ];
 
-  const startDate = new Date(semesterStart + "T00:00:00");
-  const endDate = new Date(semesterEnd + "T23:59:59");
-  const untilStr = formatICSDate(endDate);
+  const startDay = parseDateOnlyUTC(semesterStart);
+  const endDay = parseDateOnlyUTC(semesterEnd);
+  const untilUTC = formatUTCStamp(sgtToUTC(endDay, 23, 59));
 
-  // Class lessons
   for (const mod of selectedMods) {
     for (const [type, classNos] of Object.entries(mod.grouped || {})) {
       const chosenClass = selectionMap[mod.code]?.[type] || Object.keys(classNos)[0];
@@ -295,25 +331,19 @@ function generateICS(selectedMods, selectionMap, dayBlocks, semesterStart, semes
       for (const lesson of lessons) {
         if (!DAY_INDEX.hasOwnProperty(lesson.day)) continue;
 
-        const eventDate = getFirstOccurrenceOnOrAfter(startDate, lesson.day);
-        if (eventDate > endDate) continue;
+        const eventDay = getFirstOccurrenceOnOrAfter(startDay, lesson.day);
+        if (eventDay > endDay) continue;
 
         const [startH, startM] = lesson.start_time.split(":").map(Number);
         const [endH, endM] = lesson.end_time.split(":").map(Number);
-
-        const dtStart = new Date(eventDate);
-        dtStart.setHours(startH, startM, 0);
-        const dtEnd = new Date(eventDate);
-        dtEnd.setHours(endH, endM, 0);
-
         const uid = `${mod.code}-${type}-${chosenClass}-${lesson.day}@timebros`;
 
         lines.push("BEGIN:VEVENT");
         lines.push(`UID:${uid}`);
-        lines.push(`DTSTAMP:${formatICSDate(new Date())}Z`);
-        lines.push(`DTSTART:${formatICSDate(dtStart)}`);
-        lines.push(`DTEND:${formatICSDate(dtEnd)}`);
-        lines.push(`RRULE:FREQ=WEEKLY;UNTIL=${untilStr};BYDAY=${DAY_TO_ICS[lesson.day]}`);
+        lines.push(`DTSTAMP:${formatUTCStamp(new Date())}`);
+        lines.push(`DTSTART;TZID=Asia/Singapore:${formatSGTWallClock(eventDay, startH, startM)}`);
+        lines.push(`DTEND;TZID=Asia/Singapore:${formatSGTWallClock(eventDay, endH, endM)}`);
+        lines.push(`RRULE:FREQ=WEEKLY;UNTIL=${untilUTC};BYDAY=${DAY_TO_ICS[lesson.day]}`);
         lines.push(`SUMMARY:${mod.code} ${type} [${chosenClass}]`);
         if (lesson.venue) lines.push(`LOCATION:${lesson.venue}`);
         lines.push(`DESCRIPTION:${(mod.title || "").replace(/,/g, "\\,")}`);
@@ -322,7 +352,6 @@ function generateICS(selectedMods, selectionMap, dayBlocks, semesterStart, semes
     }
   }
 
-  // Personal blocks (lunch, gym, etc.)
   for (const [day, blocks] of Object.entries(dayBlocks || {})) {
     if (!DAY_INDEX.hasOwnProperty(day)) continue;
     for (const block of blocks) {
@@ -330,22 +359,17 @@ function generateICS(selectedMods, selectionMap, dayBlocks, semesterStart, semes
       const toH = parseInt(block.to, 10);
       if (!block.name || fromH >= toH) continue;
 
-      const eventDate = getFirstOccurrenceOnOrAfter(startDate, day);
-      if (eventDate > endDate) continue;
-
-      const dtStart = new Date(eventDate);
-      dtStart.setHours(fromH, 0, 0);
-      const dtEnd = new Date(eventDate);
-      dtEnd.setHours(toH, 0, 0);
+      const eventDay = getFirstOccurrenceOnOrAfter(startDay, day);
+      if (eventDay > endDay) continue;
 
       const uid = `block-${day}-${block.name}-${fromH}@timebros`;
 
       lines.push("BEGIN:VEVENT");
       lines.push(`UID:${uid}`);
-      lines.push(`DTSTAMP:${formatICSDate(new Date())}Z`);
-      lines.push(`DTSTART:${formatICSDate(dtStart)}`);
-      lines.push(`DTEND:${formatICSDate(dtEnd)}`);
-      lines.push(`RRULE:FREQ=WEEKLY;UNTIL=${untilStr};BYDAY=${DAY_TO_ICS[day]}`);
+      lines.push(`DTSTAMP:${formatUTCStamp(new Date())}`);
+      lines.push(`DTSTART;TZID=Asia/Singapore:${formatSGTWallClock(eventDay, fromH, 0)}`);
+      lines.push(`DTEND;TZID=Asia/Singapore:${formatSGTWallClock(eventDay, toH, 0)}`);
+      lines.push(`RRULE:FREQ=WEEKLY;UNTIL=${untilUTC};BYDAY=${DAY_TO_ICS[day]}`);
       lines.push(`SUMMARY:${block.name.replace(/,/g, "\\,")}`);
       lines.push("END:VEVENT");
     }
