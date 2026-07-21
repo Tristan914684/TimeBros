@@ -341,8 +341,8 @@ function generateICS(selectedMods, selectionMap, dayBlocks, semesterStart, semes
         lines.push("BEGIN:VEVENT");
         lines.push(`UID:${uid}`);
         lines.push(`DTSTAMP:${formatUTCStamp(new Date())}`);
-        lines.push(`DTSTART;TZID=Asia/Singapore:${formatSGTWallClock(eventDay, startH, startM)}`);
-        lines.push(`DTEND;TZID=Asia/Singapore:${formatSGTWallClock(eventDay, endH, endM)}`);
+        lines.push(`DTSTART:${formatUTCStamp(sgtToUTC(eventDay, startH, startM))}`);
+        lines.push(`DTEND:${formatUTCStamp(sgtToUTC(eventDay, endH, endM))}`);
         lines.push(`RRULE:FREQ=WEEKLY;UNTIL=${untilUTC};BYDAY=${DAY_TO_ICS[lesson.day]}`);
         lines.push(`SUMMARY:${mod.code} ${type} [${chosenClass}]`);
         if (lesson.venue) lines.push(`LOCATION:${lesson.venue}`);
@@ -368,8 +368,8 @@ function generateICS(selectedMods, selectionMap, dayBlocks, semesterStart, semes
       lines.push("BEGIN:VEVENT");
       lines.push(`UID:${uid}`);
       lines.push(`DTSTAMP:${formatUTCStamp(new Date())}`);
-      lines.push(`DTSTART;TZID=Asia/Singapore:${formatSGTWallClock(eventDay, fromH, 0)}`);
-      lines.push(`DTEND;TZID=Asia/Singapore:${formatSGTWallClock(eventDay, toH, 0)}`);
+      lines.push(`DTSTART:${formatUTCStamp(sgtToUTC(eventDay, fromH, 0))}`);
+      lines.push(`DTEND:${formatUTCStamp(sgtToUTC(eventDay, toH, 0))}`);
       lines.push(`RRULE:FREQ=WEEKLY;UNTIL=${untilUTC};BYDAY=${DAY_TO_ICS[day]}`);
       lines.push(`SUMMARY:${block.name.replace(/,/g, "\\,")}`);
       lines.push("END:VEVENT");
