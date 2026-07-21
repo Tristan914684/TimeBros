@@ -329,11 +329,12 @@ function generateICS(selectedMods, selectionMap, dayBlocks, semesterStart, semes
       const lessons = classNos[chosenClass] || [];
       for (const lesson of lessons) {
         if (!DAY_INDEX.hasOwnProperty(lesson.day)) continue;
+        if (!enabledDays[lesson.day]) continue;
 
         const eventDay = getFirstOccurrenceOnOrAfter(startDay, lesson.day);
         if (eventDay > endDay) continue;
 
-        cconst { h: startH, m: startM } = parseTimeStr(lesson.start_time);
+        const { h: startH, m: startM } = parseTimeStr(lesson.start_time);
         const { h: endH, m: endM } = parseTimeStr(lesson.end_time);
         const uid = `${mod.code}-${type}-${chosenClass}-${lesson.day}@timebros`;
 
@@ -353,6 +354,7 @@ function generateICS(selectedMods, selectionMap, dayBlocks, semesterStart, semes
 
   for (const [day, blocks] of Object.entries(dayBlocks || {})) {
     if (!DAY_INDEX.hasOwnProperty(day)) continue;
+    if (!enabledDays[day]) continue;
     for (const block of blocks) {
       const fromH = parseInt(block.from, 10);
       const toH = parseInt(block.to, 10);
@@ -1378,7 +1380,7 @@ export default function TimetablePage() {
       alert("End date must be on or after the start date.");
       return;
     }
-    const ics = generateICS(selectedMods, activeSelectionMap, dayBlocks, semesterStart, semesterEnd);
+    const ics = generateICS(selectedMods, activeSelectionMap, dayBlocks, semesterStart, semesterEnd, enabledDays);
     downloadICS(ics, "timebros-timetable.ics");
   }
 
@@ -1645,8 +1647,14 @@ export default function TimetablePage() {
 
             <div style={{ marginTop: "auto", paddingTop: 20 }}>
               <div style={{ display: "flex", gap: 4, background: "#0f1929", borderRadius: 10, padding: 4, marginBottom: 10 }}>
-                <button className={"mode-tab" + (mode === "manual" ? " active" : "")} onClick={() => setMode("manual")}>Manual</button>
-                <button className={"mode-tab" + (mode === "auto" ? " active" : "")} onClick={() => setMode("auto")}>Auto-Generate</button>
+                <button
+                  className={"mode-tab" + (mode === "manual" ? " active" : "")}
+                  onClick={() => { setMode("manual"); setAutoResults([]); setAutoError(""); }}
+                >Manual</button>
+                <button
+                  className={"mode-tab" + (mode === "auto" ? " active" : "")}
+                  onClick={() => { setMode("auto"); setSchedule(null); setConflicts([]); setScoreData(null); }}
+                >Auto-Generate</button>
               </div>
               {mode === "manual" ? (
                 <>
