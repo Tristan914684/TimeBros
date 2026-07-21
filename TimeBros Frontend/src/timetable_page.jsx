@@ -377,7 +377,7 @@ function generateICS(selectedMods, selectionMap, dayBlocks, semesterStart, semes
   }
 
   lines.push("END:VCALENDAR");
-  return lines.join("\r\n");
+  return lines.join("\r\n") + "\r\n";
 }
 
 function downloadICS(content, filename = "timetable.ics") {
