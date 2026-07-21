@@ -310,7 +310,7 @@ function parseTimeStr(t) {
   return { h: parseInt(digits.slice(0, 2), 10), m: parseInt(digits.slice(2, 4), 10) };
 }
 
-function generateICS(selectedMods, selectionMap, dayBlocks, semesterStart, semesterEnd) {
+function generateICS(selectedMods, selectionMap, dayBlocks, semesterStart, semesterEnd, enabledDays) {
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
