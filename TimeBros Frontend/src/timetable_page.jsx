@@ -265,10 +265,6 @@ function pad(n) {
   return n < 10 ? "0" + n : "" + n;
 }
 
-
-
-// Parse "YYYY-MM-DD" into a UTC-midnight Date used purely as a calendar-day counter.
-// Using Date.UTC (not `new Date(str)`) means this never depends on the browser's system timezone.
 function parseDateOnlyUTC(dateStr) {
   const [y, m, d] = dateStr.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d));
@@ -284,7 +280,6 @@ function getFirstOccurrenceOnOrAfter(fromDateUTC, dayName) {
   return d;
 }
 
-// SGT wall-clock string for this calendar day + given hour/min — pure formatting, no local Date math.
 function formatSGTWallClock(calDayUTC, hour, minute) {
   return (
     calDayUTC.getUTCFullYear() +
@@ -294,7 +289,6 @@ function formatSGTWallClock(calDayUTC, hour, minute) {
   );
 }
 
-// True UTC instant for a given SGT wall-clock day+time (SGT = UTC+8, no DST, ever).
 function sgtToUTC(calDayUTC, hour, minute) {
   return new Date(Date.UTC(
     calDayUTC.getUTCFullYear(),
@@ -311,7 +305,12 @@ function formatUTCStamp(date) {
   );
 }
 
-function generateICS(selectedMods, selectionMap, dayBlocks, semesterStart, semesterEnd) {
+function parseTimeStr(t) {
+  const digits = String(t).replace(/[^0-9]/g, "").padStart(4, "0");
+  return { h: parseInt(digits.slice(0, 2), 10), m: parseInt(digits.slice(2, 4), 10) };
+}
+
+function generateICS(selectedMods, selectionMap, dayBlocks, semesterStart, semesterEnd, enabledDays) {
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -330,12 +329,13 @@ function generateICS(selectedMods, selectionMap, dayBlocks, semesterStart, semes
       const lessons = classNos[chosenClass] || [];
       for (const lesson of lessons) {
         if (!DAY_INDEX.hasOwnProperty(lesson.day)) continue;
+        if (!enabledDays[lesson.day]) continue;
 
         const eventDay = getFirstOccurrenceOnOrAfter(startDay, lesson.day);
         if (eventDay > endDay) continue;
 
-        const [startH, startM] = lesson.start_time.split(":").map(Number);
-        const [endH, endM] = lesson.end_time.split(":").map(Number);
+        const { h: startH, m: startM } = parseTimeStr(lesson.start_time);
+        const { h: endH, m: endM } = parseTimeStr(lesson.end_time);
         const uid = `${mod.code}-${type}-${chosenClass}-${lesson.day}@timebros`;
 
         lines.push("BEGIN:VEVENT");
@@ -354,6 +354,7 @@ function generateICS(selectedMods, selectionMap, dayBlocks, semesterStart, semes
 
   for (const [day, blocks] of Object.entries(dayBlocks || {})) {
     if (!DAY_INDEX.hasOwnProperty(day)) continue;
+    if (!enabledDays[day]) continue;
     for (const block of blocks) {
       const fromH = parseInt(block.from, 10);
       const toH = parseInt(block.to, 10);
@@ -1379,7 +1380,7 @@ export default function TimetablePage() {
       alert("End date must be on or after the start date.");
       return;
     }
-    const ics = generateICS(selectedMods, activeSelectionMap, dayBlocks, semesterStart, semesterEnd);
+    const ics = generateICS(selectedMods, activeSelectionMap, dayBlocks, semesterStart, semesterEnd, enabledDays);
     downloadICS(ics, "timebros-timetable.ics");
   }
 
@@ -1646,8 +1647,14 @@ export default function TimetablePage() {
 
             <div style={{ marginTop: "auto", paddingTop: 20 }}>
               <div style={{ display: "flex", gap: 4, background: "#0f1929", borderRadius: 10, padding: 4, marginBottom: 10 }}>
-                <button className={"mode-tab" + (mode === "manual" ? " active" : "")} onClick={() => setMode("manual")}>Manual</button>
-                <button className={"mode-tab" + (mode === "auto" ? " active" : "")} onClick={() => setMode("auto")}>Auto-Generate</button>
+                <button
+                  className={"mode-tab" + (mode === "manual" ? " active" : "")}
+                  onClick={() => { setMode("manual"); setAutoResults([]); setAutoError(""); }}
+                >Manual</button>
+                <button
+                  className={"mode-tab" + (mode === "auto" ? " active" : "")}
+                  onClick={() => { setMode("auto"); setSchedule(null); setConflicts([]); setScoreData(null); }}
+                >Auto-Generate</button>
               </div>
               {mode === "manual" ? (
                 <>
