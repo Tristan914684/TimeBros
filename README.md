@@ -40,37 +40,6 @@ A timetable planner for NUS students. Pick your modules, auto-generate clash-fre
 - Backend: [Render](https://render.com/)
 - Database: [Render](https://render.com/) (PostgreSQL)
 
-## API Overview
-
-| Method | Endpoint                    | Description                              |
-|--------|------------------------------|-------------------------------------------|
-| POST   | `/signup`                   | Create a new account                      |
-| POST   | `/login`                    | Log in with email + password              |
-| POST   | `/forgot-password`          | Request a password reset OTP by email     |
-| POST   | `/verify-otp`               | Verify an OTP code                        |
-| POST   | `/reset-password`           | Reset password using a verified OTP       |
-| GET    | `/modules`                  | List all modules                          |
-| GET    | `/modules/:code/lessons`    | List lessons for a given module           |
-| POST   | `/schedules`                | Save/update a user's timetable            |
-| GET    | `/schedules/:email`         | Fetch a user's saved timetable             |
-
 ## Acknowledgements
 
 - Module and lesson data provided by [NUSMods](https://nusmods.com/).
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
